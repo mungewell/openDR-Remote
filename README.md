@@ -65,6 +65,11 @@ Dial Mode:
 44:52:20:20:20:07:05:00:00:00:00:00:00:00
                   DD                       00=Easy, 01=Loud, 02=Music, 03=Instrument, 04=Interview, 05=Manual
 
+LowCut/LevelControl:
+44:52:f0:20:31:00:00:00:00:00:00:00:00:14:00:00:00:00:00:01:00:01:00:00:00:00:00:00:00:01:00:02:00:00
+                                                         XX         00=Off, 01=40Hz, 02=80Hz, 03=120Hz, 04=220Hz
+                                                               XX   00=Off, 01=Limiter, 02=Peak, 03=Auto (only on interview)
+
 Streamed Audio (recorder -> computer)
 --
 These are like updates in that they are sent automatically, but obviously a
