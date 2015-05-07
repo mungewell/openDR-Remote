@@ -1,4 +1,6 @@
 
+import six
+
 import signal
 import socket
 import argparse
@@ -10,44 +12,68 @@ import binascii
 registers = Struct("registers",
    UBInt16("register"),
 
-   Switch("register-sw", lambda ctx: ctx.register,
+   Switch("Register", lambda ctx: ctx.register,
       {
-         0x0100: Struct("Format", Enum(UBInt16("Format"),
-                     BFW_24 = 0,
-                     BFW_16 = 1,
-                     WAV_24 = 2,
-                     WAV_16 = 3,
-                     MP3_320 = 4,
-                     MP3_256 = 5,
-                     MP3_192 = 6,
-                     MP3_128 = 7,
-                     MP3_96 = 8,
-                     _default_ = Pass
-                 ),
-                 ),
-         0x0101: Enum(UBInt16("Sample Rate"),
-                     ONE = 0,
-                     TWO = 1,
-                     TRHEE = 2,
-                     _default_ = Pass
-                 ),
+         0x0100: Struct("Data", Enum(UBInt16("Format"),
+               BFW_24 = 0,
+               BFW_16 = 1,
+               WAV_24 = 2,
+               WAV_16 = 3,
+               MP3_320 = 4,
+               MP3_256 = 5,
+               MP3_192 = 6,
+               MP3_128 = 7,
+               MP3_96 = 8,
+               _default_ = Pass
+               ),
+            ),
+         0x0101: Struct("Data", Enum(UBInt16("SampleRate"),
+                _44_1KHZ = 0,
+                _48KHZ = 1,
+                _96KHZ = 2,
+                _default_ = Pass
+                ),
+            ),
       },
    )
 )
 
-"""
-   Switch("data", lambda ctx: ctx.update,
+# Keep seperate as VU-Meters are very 'talkative'
+vumeters = Struct("VUMeters", Padding(1),
+   UBInt8("Left-VU"),
+   UBInt8("Right-VU"),
+   Padding(4),
+   SBInt8("Decimal-VU"),
+)
+
+updates = Struct("updates",
+   Byte("type3"),
+
+   If(lambda ctx: ctx.type3 == 0x12,
+      vumeters,
+   ),
+   If(lambda ctx: ctx.type3 != 0x12,
+   Switch("Update", lambda ctx: ctx.type3,
       {
-         0x00: Struct("Status", Enum(UBInt8("Status"),
+         0x00: Struct("Data", Enum(Byte("Status"),
                         STOPPED = 0x10,
                         PLAYING = 0x11,
+                        PLAYPAUSED = 0x12,
+                        FORWARD = 0x13,
+                        REWIND = 0x14,
                         PAUSED = 0x15,
+                        STOPPING = 0x16,
                         RECORD = 0x81,
                         ARMED = 0x82,
                         _default_ = Pass
                      ),
+                     Padding(8),
                  ),
-         0x07: Struct("Scene", Padding(1),
+         0x11 : Struct("Data", Padding(1),
+                     UBInt32("Counter"),
+                     Padding(4),
+                 ),
+         0x20: Struct("Data", Magic('\x07'),
                      Enum(UBInt8("Scene"),
                         EASY = 0x00,
                         LOUD = 0x01,
@@ -55,66 +81,70 @@ registers = Struct("registers",
                         INSTRUMENT = 0x03,
                         INTERVIEW = 0x04,
                         MANUAL = 0x05,
+                        DUB = 0x06,
+                        PRACTICE = 0x07,
                         _default_ = Pass
                      ),
                  ),
-         0x11: Struct("Counter", Padding(1),
-                     UBInt32("Counter"),
-                 ),
-         0x12: Struct("VU-Meter", Padding(1),
-                     UBInt8("Right"),
-                     UBInt8("Right"),
-                     Padding(4),
-                     SBInt8("Decimal"),
-                 ),
       },
+      default = Pass,
    ),
-"""
-updates = Struct("updates",
-   UBInt8("update"),
-
-   Switch("update-sw", lambda ctx: ctx.update,
-      {
-         0x11: Struct("Counter", Padding(1),
-                     UBInt32("Counter"),
-                     Padding(4),
-                 ),
-      },
-      default = Padding(9),
    ),
 )
 
-check_length = Struct("check_length",
-   Const(Bytes("magic", 2), "DR"),
-   UBInt8("type"),
-   Padding(9),
+sys_info = Struct("sys_info",
+   String("Name", 8),
+   Padding(8),
+   UBInt16("version"),
+   Value("Version", lambda ctx: ctx.version / 100),
+   UBInt16("Build"),
+   UBInt16("wifi1"),
+   Value("Wifi1", lambda ctx: ctx.wifi1 / 100),
+   UBInt16("wifi2"),
+   Value("Wifi2", lambda ctx: ctx.wifi2 / 100),
+)
+
+check_packet = Struct("check_packet",
+   Magic("DR"),
+   UBInt8("type1"),
+   UBInt8("type2"),
+   UBInt8("type3"),
+   Padding(7),
    UBInt16("length"),
 )
 
 short_packet = Struct("short_packet",
-   Const(Bytes("magic", 2), "DR"),
+   Magic("DR"),
    UBInt16("type"),
 
-   Switch("type-sw", lambda ctx: ctx.type,
+   Switch("Type", lambda ctx: ctx.type,
       {
-         0x2020: Embed(updates),
-         0x3020: Embed(registers),
+         0x2020 : Embed(updates),
       },
-      default = Padding(10),
+      default = Pass,
    ),
 )
 
 long_packet = Struct("long_packet",
-   Const(Bytes("magic", 2), "DR"),
+   Magic("DR"),
+   UBInt8("type1"),
    UBInt16("type"),
-   Padding(8),
+   Padding(7),
    UBInt16("length"),
-)
 
+   Switch("System", lambda ctx: ctx.type,
+      {
+         0x2000 : sys_info,
+         0x2032 : Struct("Filename",
+            String("Filename", lambda ctx: ctx._.length - 2, "utf-16-le"),
+         ),
+      },
+      default = Pass,
+   ),
+)
 # =====================================================================
 def Run():
    global options
-
    parser = argparse.ArgumentParser(prog="openDR-Remote")
 
    # Network Option
@@ -126,24 +156,28 @@ def Run():
 
    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
    s.connect((options.tcp, int(options.port)))
+   s.settimeout(0.001)
    buffer = ""
 
    while True:
-      data = s.recv(4096)
-      buffer += data
+      try:
+         data = s.recv(4096)
+         buffer += data
+      except socket.timeout:
+         pass
 
       if (len(buffer) >= 14):
          try:
             # ensure that there is enough data
-            log = check_length.parse(buffer)
+            log = check_packet.parse(buffer)
 
-            if (log.type != 0xF0):
-               print "Buf:", binascii.hexlify(buffer[:14])
+            if (log.type1 != 0xF0):
+               #print "Buf:", binascii.hexlify(buffer[:14])
                log = short_packet.parse(buffer)
                buffer = buffer[14:]
             else:
                if (len(buffer) >= log.length + 14):
-                  print "Buf:", binascii.hexlify(buffer[:log.length + 14])
+                  #print "Buf:", binascii.hexlify(buffer[:log.length + 14])
                   log = long_packet.parse(buffer)
                   buffer = buffer[log.length + 14:]
                else:
@@ -156,7 +190,10 @@ def Run():
          log = None
 
       if log:
-         print log
+         if log.get('Update'):
+            print log.Update
+         if log.get('System'):
+            print log.System
 
 if __name__ == '__main__':
    Run()
