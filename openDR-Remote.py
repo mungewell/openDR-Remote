@@ -35,6 +35,7 @@ registers = Struct("registers",
                 ),
             ),
       },
+      default = Pass,
    )
 )
 
@@ -95,13 +96,10 @@ updates = Struct("updates",
 sys_info = Struct("sys_info",
    String("Name", 8),
    Padding(8),
-   UBInt16("version"),
-   Value("Version", lambda ctx: ctx.version / 100),
+   UBInt16("Version"),
    UBInt16("Build"),
-   UBInt16("wifi1"),
-   Value("Wifi1", lambda ctx: ctx.wifi1 / 100),
-   UBInt16("wifi2"),
-   Value("Wifi2", lambda ctx: ctx.wifi2 / 100),
+   UBInt16("Wifi1"),
+   UBInt16("Wifi2"),
 )
 
 check_packet = Struct("check_packet",
@@ -120,6 +118,7 @@ short_packet = Struct("short_packet",
    Switch("Type", lambda ctx: ctx.type,
       {
          0x2020 : Embed(updates),
+         0x3020 : Embed(registers),
       },
       default = Pass,
    ),
@@ -149,9 +148,15 @@ def Run():
 
    # Network Option
    parser.set_defaults(tcp='192.168.1.1', port=8010)
-   parser.add_argument("-t", "--tcp", dest="tcp", help="TCP/IP address")
-   parser.add_argument("-p", "--port", dest="port", help="TCP/IP port")
+   parser.add_argument("-T", "--tcp", dest="tcp", help="TCP/IP address")
+   parser.add_argument("-P", "--port", dest="port", help="TCP/IP port")
 
+   # Perform actions on the recorder
+   parser.add_argument("-r", "--reg", action="store_true", dest="reg", help="read registers")
+   parser.add_argument("-R", "--rec", action="store_true", dest="rec", help="start recording")
+   parser.add_argument("-p", "--play", action="store_true", dest="play", help="start playback")
+   parser.add_argument("-s", "--stop", action="store_true", dest="stop", help="stop playback/recording")
+   parser.add_argument("-S", "--stream", action="store_true", dest="stream", help="use streaming audio")
    options = parser.parse_args()
 
    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -161,10 +166,51 @@ def Run():
 
    while True:
       try:
-         data = s.recv(4096)
+         data = s.recv(256)
          buffer += data
       except socket.timeout:
          pass
+
+      if (options.reg):
+         print "Attempt to read register"
+         # s.send("\x44\x52\x20\x42\x07\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Read File Type
+         s.send("\x44\x52\x30\x42\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00") # Read Sample Rate
+         # s.send("\x44\x52\x30\x42\x01\x02\x00\x00\x00\x00\x00\x00\x00\x00")
+         # s.send("\x44\x52\x30\x42\x01\x03\x00\x00\x00\x00\x00\x00\x00\x00")
+         # s.send("\x44\x52\x30\x42\x01\x04\x00\x00\x00\x00\x00\x00\x00\x00")
+         # s.send("\x44\x52\x30\x42\x01\x05\x00\x00\x00\x00\x00\x00\x00\x00")
+         # s.send("\x44\x52\x30\x42\x01\x06\x00\x00\x00\x00\x00\x00\x00\x00")
+         # s.send("\x44\x52\x30\x42\x01\x07\x00\x00\x00\x00\x00\x00\x00\x00")
+         # s.send("\x44\x52\x30\x42\x01\x08\x00\x00\x00\x00\x00\x00\x00\x00")
+         # s.send("\x44\x52\x30\x42\x01\x09\x00\x00\x00\x00\x00\x00\x00\x00")
+         # s.send("\x44\x52\x30\x42\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+         # s.send("\x44\x52\x30\x42\x02\x01\x00\x00\x00\x00\x00\x00\x00\x00")
+         # s.send("\x44\x52\x30\x42\x02\x05\x00\x00\x00\x00\x00\x00\x00\x00")
+         # s.send("\x44\x52\x30\x42\x02\x02\x00\x00\x00\x00\x00\x00\x00\x00")
+         # s.send("\x44\x52\x30\x42\x02\x03\x00\x00\x00\x00\x00\x00\x00\x00")
+         # s.send("\x44\x52\x30\x42\x02\x04\x00\x00\x00\x00\x00\x00\x00\x00")
+         # s.send("\x44\x52\x30\x42\x0b\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+         # s.send("\x44\x52\x30\x42\x0a\x80\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\xf0\x41\x32\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Request Filename
+         s.send("\x44\x52\xf0\x41\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00") # Request SysInfo
+         options.reg = False
+
+      if (options.stream):
+         s.send("\x44\x52\xf0\x41\x21\x01\x00\x00\x00\x00\x00\x00\x00\x00")
+         options.stream= False
+
+      if (options.play):
+         s.send("\x44\x52\x10\x41\x00\x09\x00\x00\x00\x00\x00\x00\x00\x00") # Press "Play"
+         options.play = False
+
+      if (options.rec):
+         s.send("\x44\x52\x10\x41\x00\x0b\x00\x00\x00\x00\x00\x00\x00\x00") # Press "Record"
+         options.rec = False
+
+      if (options.stop):
+         s.send("\x44\x52\x10\x41\x00\x08\x00\x00\x00\x00\x00\x00\x00\x00") # Press "Stop"
+         options.stop= False
 
       if (len(buffer) >= 14):
          try:
@@ -178,6 +224,7 @@ def Run():
             else:
                if (len(buffer) >= log.length + 14):
                   #print "Buf:", binascii.hexlify(buffer[:log.length + 14])
+                  print "Buf:", binascii.hexlify(buffer[:14]), "..."
                   log = long_packet.parse(buffer)
                   buffer = buffer[log.length + 14:]
                else:
@@ -192,6 +239,8 @@ def Run():
       if log:
          if log.get('Update'):
             print log.Update
+         if log.get('Register'):
+            print log.Register
          if log.get('System'):
             print log.System
 
