@@ -28,9 +28,9 @@ Packets
 Construction:
 * All packets start with 0x44, 0x52 ("DR") and are nominally 14 bytes long.
 * Packets are padded with 0x00 upto complete size.
-* If the 3rd byte is 0xF0 it is an extended packet and the additional number
+* The 3rd byte can signal it is an extended packet and the additional number
   of bytes is in the 13th+14th byte. (...:05:68 = 0x0568 = 1384, add 14 to
-  give 1398 byte packet)
+  give 1398 byte packet). Long packets seen with 0xF0, 0x40.
 * Some TCP/IP packets contain multiple Tascam packets, this may just be an
   articfact of wireshark. None the less they seem to be treated same as
   seperate packets.

@@ -39,6 +39,7 @@ registers = Struct("registers",
    )
 )
 
+# =====================================================================
 # Keep seperate as VU-Meters are very 'talkative'
 vumeters = Struct("VUMeters", Padding(1),
    UBInt8("Left-VU"),
@@ -93,6 +94,30 @@ updates = Struct("updates",
    ),
 )
 
+# =====================================================================
+file_entry = Struct("file_entry",
+   Peek(BitStruct("Directory",
+      Flag("Directory"),
+      Padding(7),
+   )),
+   UBInt16("Index"),
+   Padding(8),
+
+   Peek(RepeatUntil(lambda obj, ctx: obj == "\x00\x0d", Field("data",2))),
+   Value("length", lambda ctx: (len(ctx.data) - 1) * 2),
+   String("Filename", lambda ctx: ctx.length, "utf-16-le"),
+   Padding(2),
+)
+
+file_table = Struct("file_table",
+   Padding(3),
+   UBInt16("Count"),
+   Padding(4),
+
+   Array(lambda ctx: ctx.Count, file_entry),
+)
+
+# =====================================================================
 sys_info = Struct("sys_info",
    String("Name", 8),
    Padding(8),
@@ -102,6 +127,7 @@ sys_info = Struct("sys_info",
    UBInt16("Wifi2"),
 )
 
+# =====================================================================
 check_packet = Struct("check_packet",
    Magic("DR"),
    UBInt8("type1"),
