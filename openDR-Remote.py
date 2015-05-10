@@ -95,26 +95,19 @@ updates = Struct("updates",
 )
 
 # =====================================================================
-file_entry = Struct("file_entry",
+file_entry = Struct("Files",
    Peek(BitStruct("Directory",
       Flag("Directory"),
       Padding(7),
    )),
-   UBInt16("Index"),
+   UBInt16("index"),
+   Value("Index", lambda ctx: ctx.index & 0x7fff),
    Padding(8),
 
    Peek(RepeatUntil(lambda obj, ctx: obj == "\x00\x0d", Field("data",2))),
-   Value("length", lambda ctx: (len(ctx.data) - 1) * 2),
-   String("Filename", lambda ctx: ctx.length, "utf-16-le"),
+   Value("flength", lambda ctx: (len(ctx.data) - 1) * 2),
+   String("Filename", lambda ctx: ctx.flength, "utf-16-le"),
    Padding(2),
-)
-
-file_table = Struct("file_table",
-   Padding(3),
-   UBInt16("Count"),
-   Padding(4),
-
-   Array(lambda ctx: ctx.Count, file_entry),
 )
 
 # =====================================================================
@@ -130,10 +123,12 @@ sys_info = Struct("sys_info",
 # =====================================================================
 check_packet = Struct("check_packet",
    Magic("DR"),
-   UBInt8("type1"),
-   UBInt8("type2"),
-   UBInt8("type3"),
-   Padding(7),
+   BitStruct("Flags",
+      Padding(1),
+      Flag("Long"),
+      Padding(6),
+   ),
+   Padding(9),
    UBInt16("length"),
 )
 
@@ -152,8 +147,13 @@ short_packet = Struct("short_packet",
 
 long_packet = Struct("long_packet",
    Magic("DR"),
-   UBInt8("type1"),
+   BitStruct("Flags",
+      Padding(1),
+      Flag("Long"),
+      Padding(6),
+   ),
    UBInt16("type"),
+
    Padding(7),
    UBInt16("length"),
 
@@ -162,6 +162,9 @@ long_packet = Struct("long_packet",
          0x2000 : sys_info,
          0x2032 : Struct("Filename",
             String("Filename", lambda ctx: ctx._.length - 2, "utf-16-le"),
+         ),
+         0x2010 : Struct("Files",
+            GreedyRange(file_entry),
          ),
       },
       default = Pass,
@@ -183,16 +186,18 @@ def Run():
    parser.add_argument("-p", "--play", action="store_true", dest="play", help="start playback")
    parser.add_argument("-s", "--stop", action="store_true", dest="stop", help="stop playback/recording")
    parser.add_argument("-S", "--stream", action="store_true", dest="stream", help="use streaming audio")
+   parser.add_argument("-L", "--list", action="store_true", dest="listing", help="list stored files")
    options = parser.parse_args()
 
    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
    s.connect((options.tcp, int(options.port)))
    s.settimeout(0.001)
    buffer = ""
+   loop = 0
 
    while True:
       try:
-         data = s.recv(256)
+         data = s.recv(14)
          buffer += data
       except socket.timeout:
          pass
@@ -238,26 +243,79 @@ def Run():
          s.send("\x44\x52\x10\x41\x00\x08\x00\x00\x00\x00\x00\x00\x00\x00") # Press "Stop"
          options.stop= False
 
+      '''
+      if (options.listing and loop == 0):
+         s.send("\x44\x52\x30\x42\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x20\x42\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Read Status
+         s.send("\x44\x52\x20\x42\x21\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x20\x42\x11\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Read Counter
+
+      if (options.listing and loop == 500):
+         s.send("\x44\x52\x20\x42\x20\x05\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x20\x42\x20\x01\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x20\x42\x20\x03\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x20\x42\x20\x02\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x20\x42\x20\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x20\x42\x20\x04\x00\x00\x00\x00\x00\x00\x00\x00") # Read Status
+         s.send("\x44\x52\x20\x42\x20\x07\x00\x00\x00\x00\x00\x00\x00\x00") # Read Scene
+
+      if (options.listing and loop == 800):
+         s.send("\x44\x52\x30\x42\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\x01\x02\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\x01\x03\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\x01\x04\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\x01\x05\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\x01\x07\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\x01\x08\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\x01\x09\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\x02\x01\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\x02\x05\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\x02\x02\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\x02\x03\x00\x00\x00\x00\x00\x00\x00\x00")
+
+         s.send("\x44\x52\x30\x42\x0b\x80\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\x0b\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\xa0\x80\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\xf0\x41\x32\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Read Current filename
+         s.send("\x44\x52\xf0\x41\x21\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\xf0\x41\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00") # Read Device Version
+      '''
+
+      if options.listing:
+         print "Requesting listing"
+         # Comms are locked up after the following command, why?
+         s.send("\x44\x52\x40\x41\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+         options.listing = False
+
       if (len(buffer) >= 14):
          try:
             # ensure that there is enough data
             log = check_packet.parse(buffer)
 
-            if (log.type1 != 0xF0):
-               #print "Buf:", binascii.hexlify(buffer[:14])
-               log = short_packet.parse(buffer)
-               buffer = buffer[14:]
-            else:
+            if log.Flags.Long:
+               if log.length:
+                  try:
+                     data = s.recv(log.length)
+                     buffer += data
+                  except socket.timeout:
+                     pass
+
                if (len(buffer) >= log.length + 14):
-                  #print "Buf:", binascii.hexlify(buffer[:log.length + 14])
-                  print "Buf:", binascii.hexlify(buffer[:14]), "..."
+                  #print "Buf:", binascii.hexlify(buffer[:14]), "...", log.length
                   log = long_packet.parse(buffer)
                   buffer = buffer[log.length + 14:]
                else:
                   log = None
+            else:
+               #print "Buf:", binascii.hexlify(buffer[:14])
+               log = short_packet.parse(buffer)
+               buffer = buffer[14:]
          except ConstError:
             # magic not found
-            buffer = buffer[1:]
+            buffer = ""
             log = None
       else:
          log = None
@@ -268,7 +326,11 @@ def Run():
          if log.get('Register'):
             print log.Register
          if log.get('System'):
-            print log.System
+            if log.System.get('Files'):
+               for x in range(len(log.System.Files)):
+                  print log.System.Files[x].Index, "=", log.System.Files[x].Filename
+            else:
+               print log.System
 
 if __name__ == '__main__':
    Run()
