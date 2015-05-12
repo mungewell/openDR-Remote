@@ -110,6 +110,14 @@ file_entry = Struct("Files",
    Padding(2),
 )
 
+file_name = Struct("Filename",
+   String("Filename", lambda ctx: ctx._.length - 2, "utf-16-le"),
+)
+
+file_data = Struct("FileData",
+   Bytes("FileData", lambda ctx: ctx._.length),
+)
+
 # =====================================================================
 sys_info = Struct("sys_info",
    String("Name", 8),
@@ -147,6 +155,7 @@ short_packet = Struct("short_packet",
 
 long_packet = Struct("long_packet",
    Magic("DR"),
+   Peek(UBInt8("type1")),
    BitStruct("Flags",
       Padding(1),
       Flag("Long"),
@@ -160,8 +169,9 @@ long_packet = Struct("long_packet",
    Switch("System", lambda ctx: ctx.type,
       {
          0x2000 : sys_info,
-         0x2032 : Struct("Filename",
-            String("Filename", lambda ctx: ctx._.length - 2, "utf-16-le"),
+         0x2032 : IfThenElse("data", lambda ctx: ctx.type1 == 0xf0,
+            file_name,
+            file_data,
          ),
          0x2010 : Struct("Files",
             GreedyRange(file_entry),
@@ -186,7 +196,10 @@ def Run():
    parser.add_argument("-p", "--play", action="store_true", dest="play", help="start playback")
    parser.add_argument("-s", "--stop", action="store_true", dest="stop", help="stop playback/recording")
    parser.add_argument("-S", "--stream", action="store_true", dest="stream", help="use streaming audio")
-   parser.add_argument("-L", "--list", action="store_true", dest="listing", help="list stored files")
+
+   # File actions for device
+   parser.add_argument("-l", "--list", action="store_true", dest="listing", help="list stored files")
+   parser.add_argument("-d", "--download", dest="download", help="download file [index from listing]")
    options = parser.parse_args()
 
    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -194,6 +207,7 @@ def Run():
    s.settimeout(0.001)
    buffer = ""
    loop = 0
+   store_file = None
 
    while True:
       try:
@@ -285,8 +299,6 @@ def Run():
       '''
 
       if options.listing:
-         print "Requesting listing"
-         # Comms are locked up after the following command, why?
          s.send("\x44\x52\x40\x41\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00")
          options.listing = False
 
@@ -328,9 +340,14 @@ def Run():
          if log.get('System'):
             if log.System.get('Files'):
                for x in range(len(log.System.Files)):
+                  if options.download:
+                     if int(options.download) == log.System.Files[x].Index:
+                        storage_file = open(log.System.Files[x].Filename, "wb")
+                        s.send("\x44\x52\x40\x41\x30\x00\x00"+chr(int(options.download))+"\x00\x00\x00\x00\x00\x00")
+                        print "*",
                   print log.System.Files[x].Index, "=", log.System.Files[x].Filename
-            else:
-               print log.System
+            if log.System.get('FileData') and storage_file:
+               storage_file.write(log.System.FileData)
 
 if __name__ == '__main__':
    Run()
