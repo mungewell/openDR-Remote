@@ -122,6 +122,7 @@ Input Control
 Volume:
 44:52:30:41:0b:00:59:59:00:00:00:00:00:00 < maximum value (0x59 = 89, maximum in app/on screen is 90)
                   VV VV
+Although this is 2 values, it is not independant L/R on DR-2WL - might be stereo pairs on DR-44WL
 
 Level Control:
 44:52:30:41:0a:03:00:00:00:01:00:00:00:00 < Level Control (Off, Limiter, Peak, [Auto])

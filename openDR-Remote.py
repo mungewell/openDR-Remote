@@ -4,7 +4,7 @@ import six
 import signal
 import socket
 import argparse
-from datetime import timedelta
+import datetime
 from construct import *
 
 import binascii
@@ -266,6 +266,7 @@ def Run():
    parser.add_argument("-s", "--stop", action="store_true", dest="stop", help="stop playback/recording")
    parser.add_argument("-S", "--stream", action="store_true", dest="stream", help="use streaming audio")
    parser.add_argument("-L", "--level", dest="level", help="set input level for recording [0-90]")
+   parser.add_argument("-c", "--clock", action="store_true", dest="clock", help="set clock to match PC's")
 
    # File actions for device
    parser.add_argument("-l", "--list", action="store_true", dest="listing", help="list stored files")
@@ -343,7 +344,26 @@ def Run():
          options.listing = False
 
       if options.level:
-         s.send("\x44\x52\x30\x41\x0b\x00"+chr(int(options.level))+chr(int(options.level))+"\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x41\x0b\x00" + \
+            chr(int(options.level))+chr(int(options.level)) + \
+            "\x00\x00\x00\x00\x00\x00")
+         options.level = False
+
+      if options.clock:
+         now = datetime.datetime.now()
+         print "Setting the clock to:", now
+         # For some reason you have to send this twice
+         s.send("\x44\x52\x30\x41\x07\x00" + \
+            chr(int(now.year) >> 8) + chr(int(now.year) & 0xFF) + \
+            chr(int(now.month)) +  chr(int(now.day)) + \
+            chr(int(now.hour)) + chr(int(now.minute)) + \
+            chr(int(now.second)) + "\x00")
+         s.send("\x44\x52\x30\x41\x07\x00" + \
+            chr(int(now.year) >> 8) + chr(int(now.year) & 0xFF) + \
+            chr(int(now.month)) +  chr(int(now.day)) + \
+            chr(int(now.hour)) + chr(int(now.minute)) + \
+            chr(int(now.second)) + "\x00")
+         options.clock = False
 
       if (len(buffer) >= 14):
          try:
