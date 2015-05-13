@@ -115,3 +115,18 @@ Request Table
 
 Request File _XX_
 44:52:40:41:30:00:00:_XX_:00:00:00:00:00:00
+
+
+Input Control
+--
+Volume:
+44:52:30:41:0b:00:59:59:00:00:00:00:00:00 < maximum value (0x59 = 89, maximum in app/on screen is 90)
+                  VV VV
+
+Level Control:
+44:52:30:41:0a:03:00:00:00:01:00:00:00:00 < Level Control (Off, Limiter, Peak, [Auto])
+                           VV
+
+Low Cut:
+44:52:30:41:0a:02:00:00:00:01:00:00:00:00 < Low Cut (Off, 40, 80, 120, 220Hz)
+                           VV

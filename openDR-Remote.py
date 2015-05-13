@@ -28,9 +28,9 @@ registers = Struct("registers",
                ),
             ),
          0x0101: Struct("Data", Enum(UBInt16("SampleRate"),
-                _44_1KHZ = 0,
-                _48KHZ = 1,
-                _96KHZ = 2,
+                KHZ_44_1 = 0,
+                KHZ_48 = 1,
+                KHZ_96 = 2,
                 _default_ = Pass
                 ),
             ),
@@ -52,6 +52,56 @@ registers = Struct("registers",
                _default_ = Pass
                 ),
             ),
+         0x0200: Struct("Data", Enum(UBInt16("TrackInc"),
+               OFF = 0,
+               MIN_5 = 1,
+               MIN_10 = 2,
+               MIN_15 = 3,
+               MIN_30 = 4,
+               MIN_60 = 5,
+               _default_ = Pass
+                ),
+            ),
+         0x0201: Struct("Data", Enum(UBInt16("AutoLevel"),
+               OFF = 0,
+               DB_6 = 1,
+               DB_12 = 2,
+               DB_24 = 3,
+               DB_48 = 4,
+               _default_ = Pass
+                ),
+            ),
+         0x0203: Struct("Data", Enum(UBInt16("AutoMark"),
+               OFF = 0,
+               LEVEL = 1,
+               TIME = 2,
+               _default_ = Pass
+                ),
+            ),
+         0x0204: Struct("Data", UBInt16("AutoMarkLevel")),
+         0x0600: Struct("Data", Enum(UBInt16("Reverb"),
+                OFF = 0,
+                ON = 1,
+                _default_ = Pass
+                ),
+            ),
+         0x0601: Struct("Data", Enum(UBInt16("ReverbType"),
+                HALL1 = 0,
+                HALL2 = 1,
+                ROOM = 2,
+                STUDIO = 3,
+                PLATE1 = 4,
+                PLATE2 = 5,
+                _default_ = Pass
+                ),
+            ),
+         0x0602: Struct("Data", Enum(UBInt16("ReverbMode"),
+                MONITOR = 0,
+                RECORD = 1,
+                _default_ = Pass
+                ),
+            ),
+         0x0603: Struct("Data", UBInt16("ReverbLevel")),
       },
       default = Pass,
    )
@@ -215,6 +265,7 @@ def Run():
    parser.add_argument("-p", "--play", action="store_true", dest="play", help="start playback")
    parser.add_argument("-s", "--stop", action="store_true", dest="stop", help="stop playback/recording")
    parser.add_argument("-S", "--stream", action="store_true", dest="stream", help="use streaming audio")
+   parser.add_argument("-L", "--level", dest="level", help="set input level for recording [0-90]")
 
    # File actions for device
    parser.add_argument("-l", "--list", action="store_true", dest="listing", help="list stored files")
@@ -290,6 +341,9 @@ def Run():
       if options.listing:
          s.send("\x44\x52\x40\x41\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00")
          options.listing = False
+
+      if options.level:
+         s.send("\x44\x52\x30\x41\x0b\x00"+chr(int(options.level))+chr(int(options.level))+"\x00\x00\x00\x00\x00\x00")
 
       if (len(buffer) >= 14):
          try:
