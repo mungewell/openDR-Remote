@@ -74,10 +74,36 @@ LowCut/LevelControl:
 Streamed Audio (recorder -> computer)
 --
 These are like updates in that they are sent automatically, but obviously a
-lot larger. No analysis (yet) on what they contain.
+lot larger.
 
 44:52:f0:20:20:01:10:00:00:20:2b:00:05:68:00:00:00:00:.... 
                                     ++ ++ (extra size :05:68 for total of 1398 bytes per packet)
+
+If stream audio data is written to disk we can see that it is at frequency of file
+(note 96KHz files can not be streamed), in stereo (even if source is mono) and 16bit samples
+little endian alternate left/right. There also appears to be a soft start when file is
+starting to play.
+
+A wav file was created with 'sox -b 16 -n sine_1K_48K.wav synth 30 sine 1000', transfered 
+to device, streamed played ('-S -p' flags), and captured on PC...
+--
+$ hexdump -C stream_1K_48K.dat | head -n 20
+00000000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+000001d0  01 00 01 00 02 00 02 00  03 00 03 00 05 00 05 00  |................|
+000001e0  07 00 07 00 0a 00 0a 00  0d 00 0d 00 11 00 11 00  |................|
+000001f0  14 00 14 00 18 00 18 00  1c 00 1c 00 1f 00 1f 00  |................|
+00000200  22 00 22 00 24 00 24 00  25 00 25 00 24 00 24 00  |".".$.$.%.%.$.$.|
+00000210  23 00 23 00 1f 00 1f 00  1a 00 1a 00 13 00 13 00  |#.#.............|
+00000220  0b 00 0b 00 00 00 00 00  f3 ff f3 ff e5 ff e5 ff  |................|
+00000230  d5 ff d5 ff c4 ff c4 ff  b2 ff b2 ff 9f ff 9f ff  |................|
+00000240  8c ff 8c ff 7a ff 7a ff  68 ff 68 ff 58 ff 58 ff  |....z.z.h.h.X.X.|
+00000250  49 ff 49 ff 3d ff 3d ff  34 ff 34 ff 2f ff 2f ff  |I.I.=.=.4.4././.|
+00000260  2e ff 2e ff 31 ff 31 ff  39 ff 39 ff 46 ff 46 ff  |....1.1.9.9.F.F.|
+00000270  58 ff 58 ff 70 ff 70 ff  8d ff 8d ff af ff af ff  |X.X.p.p.........|
+00000280  d5 ff d5 ff 00 00 00 00  2e 00 2e 00 60 00 60 00  |............`.`.|
+...
+--
 
 
 Command/Response

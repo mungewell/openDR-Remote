@@ -187,6 +187,10 @@ file_data = Struct("FileData",
    Bytes("FileData", lambda ctx: ctx._.length),
 )
 
+stream_data = Struct("StreamData",
+   Bytes("StreamData", lambda ctx: ctx._.length),
+)
+
 # =====================================================================
 sys_info = Struct("sys_info",
    String("Name", 8),
@@ -238,6 +242,7 @@ long_packet = Struct("long_packet",
    Switch("System", lambda ctx: ctx.type,
       {
          0x2000 : sys_info,
+         0x2020 : stream_data,
          0x2032 : IfThenElse("data", lambda ctx: ctx.type1 == 0xf0,
             file_name,
             file_data,
@@ -325,6 +330,7 @@ def Run():
 
       if (options.stream):
          s.send("\x44\x52\xf0\x41\x21\x01\x00\x00\x00\x00\x00\x00\x00\x00")
+         stream_file = open("stream.dat", "wb")
          options.stream= False
 
       if (options.play):
@@ -379,7 +385,7 @@ def Run():
                      pass
 
                if (len(buffer) >= log.length + 14):
-                  #print "Buf:", binascii.hexlify(buffer[:14]), "...", log.length
+                  print "Buf:", binascii.hexlify(buffer[:14]), "...", log.length
                   log = long_packet.parse(buffer)
                   buffer = buffer[log.length + 14:]
                else:
@@ -413,6 +419,9 @@ def Run():
                   print log.System.Files[x].Index, "=", log.System.Files[x].Filename
             elif log.System.get('FileData') and storage_file:
                storage_file.write(log.System.FileData)
+            elif log.System.get('StreamData') and stream_file:
+               print "Got Stream Data"
+               stream_file.write(log.System.StreamData)
             else:
                print log.System
 
