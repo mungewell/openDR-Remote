@@ -105,6 +105,19 @@ $ hexdump -C stream_1K_48K.dat | head -n 20
 ...
 --
 
+With a 24bit wav file created with 'sox -b 24 -n sine_1K_48K_24bit.wav synth 30 sine 1000', I get
+play errors. It appears that sox creates a corrupt file, the RIFF version is '0xFFFE', using a 
+hexedit this can be changed to '0x0001' and the file plays fine.
+--
+$ hexdump -C sine_1K_48K_24bit.wav | head
+00000000  52 49 46 46 48 eb 41 00  57 41 56 45 66 6d 74 20  |RIFFH.A.WAVEfmt |
+00000010  28 00 00 00>fe_ff<01 00  80 bb 00 00 80 32 02 00  |(............2..| < the 'fe ff' here, change to '01 00'
+00000020  03 00 18 00 16 00 18 00  04 00 00 00 01 00 00 00  |................|
+00000030  00 00 10 00 80 00 00 aa  00 38 9b 71 66 61 63 74  |.........8.qfact|
+...
+--
+
+
 
 Command/Response
 --

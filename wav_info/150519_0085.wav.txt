@@ -1,0 +1,33 @@
+-------------------------------------------------------------------------------
+File name:                    150519_0085.wav
+Handled by:                   wav format module
+Length:                       0:15.480
+WAVE format:                  0x0001 (Microsoft PCM)
+Channels:                     2
+Bits/sample:                  24
+Samples/sec:                  48000
+Average bytes/sec:            288000
+Rate (calculated):            288000
+Block align:                  6
+Header size:                  44 bytes
+Data size:                    4458240 bytes
+Chunk size:                   4458276 bytes
+Total size (chunk size + 8):  4458284 bytes
+Actual file size:             4458284
+File is compressed:           no
+Compression ratio:            1.0000
+CD-quality properties:
+  CD quality:                 no
+  Cut on sector boundary:     n/a
+  Sector misalignment:        n/a
+  Long enough to be burned:   n/a
+WAVE properties:
+  Non-canonical header:       no
+  Extra RIFF chunks:          no
+Possible problems:
+  File contains ID3v2 tag:    no
+  Data chunk block-aligned:   yes
+  Inconsistent header:        no
+  File probably truncated:    no
+  Junk appended to file:      no
+  Odd data size has pad byte: n/a
