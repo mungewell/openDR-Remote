@@ -116,8 +116,18 @@ registers = Struct("registers",
 # =====================================================================
 # Keep seperate as VU-Meters are very 'talkative'
 vumeters = Struct("VUMeters", Padding(1),
-   UBInt8("Left-VU"),
-   UBInt8("Right-VU"),
+   Peek(BitStruct("Flags",
+      Flag("Peek"),
+      Padding(7),
+      Flag("12dB"),
+      Padding(7),
+   )),
+   UBInt8("left"),
+   UBInt8("right"),
+
+   Value("Left", lambda ctx: ctx.left & 0x7f),
+   Value("Right", lambda ctx: ctx.right & 0x7f),
+
    Padding(4),
    SBInt8("Decimal-VU"),
 )
@@ -277,8 +287,9 @@ def Run():
    parser.add_argument("-s", "--stop", action="store_true", dest="stop", help="stop playback/recording")
    parser.add_argument("-S", "--stream", action="store_true", dest="stream", help="use streaming audio")
    parser.add_argument("-L", "--level", dest="level", help="set input level for recording [0-90]")
-   parser.add_argument("-c", "--clock", action="store_true", dest="clock", help="set clock to match PC's")
+   parser.add_argument("-v", "--vu", action="store_true", dest="vu", help="show vu meters (verbose)")
 
+   parser.add_argument("-c", "--clock", action="store_true", dest="clock", help="set clock to match PC's")
    parser.add_argument("-r", "--reg", dest="reg", help="read register bank [0-9]")
 
    # File actions for device
@@ -399,7 +410,7 @@ def Run():
                else:
                   log = None
             else:
-               # print "Buf:", binascii.hexlify(buffer[:14])
+               print "Buf:", binascii.hexlify(buffer[:14])
                log = short_packet.parse(buffer)
                buffer = buffer[14:]
          except ConstError:
@@ -416,6 +427,8 @@ def Run():
             print log.Update
          if log.get('Register'):
             print log.Register
+         if log.get('VUMeters') and options.vu:
+            print log.VUMeters
          if log.get('System'):
             if log.System.get('Files'):
                for x in range(len(log.System.Files)):
