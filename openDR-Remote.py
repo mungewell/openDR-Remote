@@ -410,7 +410,7 @@ def Run():
                else:
                   log = None
             else:
-               print "Buf:", binascii.hexlify(buffer[:14])
+               # print "Buf:", binascii.hexlify(buffer[:14])
                log = short_packet.parse(buffer)
                buffer = buffer[14:]
          except ConstError:
