@@ -34,6 +34,12 @@ registers = Struct("registers",
                 _default_ = Pass
                 ),
             ),
+         0x0102: Struct("Data", Enum(UBInt16("PreRecord"),
+                OFF = 0,
+                ON = 1,
+                _default_ = Pass
+                ),
+            ),
          0x0108: Struct("Data", Enum(UBInt16("Channels"),
                 MONO = 0,
                 STEREO = 1,
@@ -265,13 +271,15 @@ def Run():
    parser.add_argument("-P", "--port", dest="port", help="TCP/IP port")
 
    # Perform actions on the recorder
-   parser.add_argument("-r", "--reg", action="store_true", dest="reg", help="read registers")
+   parser.add_argument("-i", "--info", action="store_true", dest="info", help="request info from recorder")
    parser.add_argument("-R", "--rec", action="store_true", dest="rec", help="start recording")
    parser.add_argument("-p", "--play", action="store_true", dest="play", help="start playback")
    parser.add_argument("-s", "--stop", action="store_true", dest="stop", help="stop playback/recording")
    parser.add_argument("-S", "--stream", action="store_true", dest="stream", help="use streaming audio")
    parser.add_argument("-L", "--level", dest="level", help="set input level for recording [0-90]")
    parser.add_argument("-c", "--clock", action="store_true", dest="clock", help="set clock to match PC's")
+
+   parser.add_argument("-r", "--reg", dest="reg", help="read register bank [0-9]")
 
    # File actions for device
    parser.add_argument("-l", "--list", action="store_true", dest="listing", help="list stored files")
@@ -299,34 +307,34 @@ def Run():
          s.send("\x44\x52\x20\x42\x07\x00\x00\x00\x00\x00\x00\x00\x00\x00")
 
       if options.reg:
+         for reg in range(10):
+            s.send("\x44\x52\x30\x42" + chr(int(options.reg)) + chr(reg) + \
+               "\x00\x00\x00\x00\x00\x00\x00\x00") # Read 
+         options.reg = False
+
+      if options.info:
          s.send("\x44\x52\xf0\x41\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00") # Request SysInfo
 
          s.send("\x44\x52\x30\x42\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Read File Type
          s.send("\x44\x52\x30\x42\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00") # Read Sample Rate
-         # s.send("\x44\x52\x30\x42\x01\x02\x00\x00\x00\x00\x00\x00\x00\x00")
-         # s.send("\x44\x52\x30\x42\x01\x03\x00\x00\x00\x00\x00\x00\x00\x00")
-         # s.send("\x44\x52\x30\x42\x01\x04\x00\x00\x00\x00\x00\x00\x00\x00")
-         # s.send("\x44\x52\x30\x42\x01\x05\x00\x00\x00\x00\x00\x00\x00\x00")
-         # s.send("\x44\x52\x30\x42\x01\x06\x00\x00\x00\x00\x00\x00\x00\x00")
-         # s.send("\x44\x52\x30\x42\x01\x07\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\x01\x02\x00\x00\x00\x00\x00\x00\x00\x00") # Read PreRecord
          s.send("\x44\x52\x30\x42\x01\x08\x00\x00\x00\x00\x00\x00\x00\x00") # Read Channels
          s.send("\x44\x52\x30\x42\x01\x09\x00\x00\x00\x00\x00\x00\x00\x00") # Read Dual Mode
 
-         # s.send("\x44\x52\x30\x42\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-         # s.send("\x44\x52\x30\x42\x02\x01\x00\x00\x00\x00\x00\x00\x00\x00")
-         # s.send("\x44\x52\x30\x42\x02\x05\x00\x00\x00\x00\x00\x00\x00\x00")
-         # s.send("\x44\x52\x30\x42\x02\x02\x00\x00\x00\x00\x00\x00\x00\x00")
-         # s.send("\x44\x52\x30\x42\x02\x03\x00\x00\x00\x00\x00\x00\x00\x00")
-         # s.send("\x44\x52\x30\x42\x02\x04\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Read Auto Track Inc
+         s.send("\x44\x52\x30\x42\x02\x01\x00\x00\x00\x00\x00\x00\x00\x00") # Read Auto Level
+         s.send("\x44\x52\x30\x42\x02\x03\x00\x00\x00\x00\x00\x00\x00\x00") # Read Auto Mark
+         s.send("\x44\x52\x30\x42\x02\x04\x00\x00\x00\x00\x00\x00\x00\x00") # Read Auto Mark Level
 
-         # s.send("\x44\x52\x30\x42\x0b\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-         # s.send("\x44\x52\x30\x42\x0a\x80\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send("\x44\x52\x30\x42\x03\x03\x00\x00\x00\x00\x00\x00\x00\x00") # Read ???
 
-         s.send("\x44\x52\xf0\x41\x32\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Request Filename + Device Name
+         s.send("\x44\x52\x30\x42\x0a\x80\x00\x00\x00\x00\x00\x00\x00\x00") # Read low cut/level control
+
+         s.send("\x44\x52\xf0\x41\x32\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Request Filename
          s.send("\x44\x52\x20\x42\x11\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Read Counter
          s.send("\x44\x52\x20\x42\x20\x07\x00\x00\x00\x00\x00\x00\x00\x00") # Read Scene
          s.send("\x44\x52\x20\x42\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Read Status
-         options.reg = False
+         options.info = False
 
       if (options.stream):
          s.send("\x44\x52\xf0\x41\x21\x01\x00\x00\x00\x00\x00\x00\x00\x00")
@@ -385,13 +393,13 @@ def Run():
                      pass
 
                if (len(buffer) >= log.length + 14):
-                  print "Buf:", binascii.hexlify(buffer[:14]), "...", log.length
+                  # print "Buf:", binascii.hexlify(buffer[:14]), "...", log.length
                   log = long_packet.parse(buffer)
                   buffer = buffer[log.length + 14:]
                else:
                   log = None
             else:
-               #print "Buf:", binascii.hexlify(buffer[:14])
+               # print "Buf:", binascii.hexlify(buffer[:14])
                log = short_packet.parse(buffer)
                buffer = buffer[14:]
          except ConstError:
@@ -420,7 +428,6 @@ def Run():
             elif log.System.get('FileData') and storage_file:
                storage_file.write(log.System.FileData)
             elif log.System.get('StreamData') and stream_file:
-               print "Got Stream Data"
                stream_file.write(log.System.StreamData)
             else:
                print log.System
