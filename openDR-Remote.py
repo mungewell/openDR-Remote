@@ -231,6 +231,24 @@ sys_message = Struct("SysMessage",
    Bytes("SysMessage", lambda ctx: ctx._.length),
 )
 
+input_info = Struct("InputInfo",
+   Padding(4),
+   Enum(UBInt16("LCF"),
+      OFF = 0,
+      HZ_40 = 1,
+      HZ_80 = 2,
+      HZ_120 = 3,
+      HZ_220 = 4,
+      _default_ = Pass
+      ),
+   Enum(UBInt16("LV Control"),
+      OFF = 0,
+      LIMITER = 1,
+      PEAK = 2,
+      AUTO = 3,
+      _default_ = Pass
+      ),
+)
 # =====================================================================
 sys_info = Struct("sys_info",
    String("Name", 8),
@@ -283,6 +301,7 @@ long_packet = Struct("long_packet",
       {
          0x2000 : sys_info,
          0x2020 : stream_data,
+         0x2031 : input_info,
          0x2032 : IfThenElse("data", lambda ctx: ctx.type1 == 0xf0,
             file_name,
             file_data,
@@ -410,6 +429,8 @@ def Run():
          F2 = 0x1d, 29, not works
          F3 = 0x1e, 30, not works
          F4 = 0x1f, 31, not works
+
+         54,86 = Init WiFi update
          '''
          s.send("\x44\x52\x10\x41\x00"+chr(int(options.keycode))+ \
              "\x00\x00\x00\x00\x00\x00\x00\x00") # Send Keycode
