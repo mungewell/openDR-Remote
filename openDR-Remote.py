@@ -305,6 +305,7 @@ def Run():
    parser.add_argument("-R", "--rec", action="store_true", dest="rec", help="start recording")
    parser.add_argument("-p", "--play", action="store_true", dest="play", help="start playback")
    parser.add_argument("-s", "--stop", action="store_true", dest="stop", help="stop playback/recording")
+   parser.add_argument("-k", "--key", dest="keycode", help="send a specific key-code")
    parser.add_argument("-S", "--stream", action="store_true", dest="stream", help="use streaming audio")
    parser.add_argument("-L", "--level", dest="level", help="set input level for recording [0-90]")
    parser.add_argument("-v", "--vu", action="store_true", dest="vu", help="show vu meters (verbose)")
@@ -387,6 +388,27 @@ def Run():
       if (options.stop):
          s.send("\x44\x52\x10\x41\x00\x08\x00\x00\x00\x00\x00\x00\x00\x00") # Press "Stop"
          options.stop= False
+
+      if (options.keycode):
+         '''
+         Stop = 0x08, works - rec stops, play 2 needed = pause + stop
+         Play = 0x09, works
+         Pause = 0x0a, 10, not working
+         Record = 0x0b = 11, works, 2nd pause
+         FFSearch = 0x0c, 12, works - sticky
+         RewSearch = 0x0d, 13, works - sticky
+         FFSkip = 0x0e, 14, works
+         RewSkip = 0x0f, 15, works
+         Mark = 0x18, 24, works (in record)
+         Repeat = 0x19, 25, not working (in play)
+         F1 = 0x1c, 28, not works
+         F2 = 0x1d, 29, not works
+         F3 = 0x1e, 30, not works
+         F4 = 0x1f, 31, not works
+         '''
+         s.send("\x44\x52\x10\x41\x00"+chr(int(options.keycode))+ \
+             "\x00\x00\x00\x00\x00\x00\x00\x00") # Send Keycode
+         options.keycode = False
 
       if options.listing:
          s.send("\x44\x52\x40\x41\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00")
