@@ -6,6 +6,7 @@ import socket
 import argparse
 import datetime
 from construct import *
+from time import sleep
 
 import binascii
 
@@ -295,6 +296,8 @@ def Run():
    # File actions for device
    parser.add_argument("-l", "--list", action="store_true", dest="listing", help="list stored files")
    parser.add_argument("-d", "--download", dest="download", help="download file [index from listing]")
+
+   parser.add_argument("-D", "--debug", action="store_true", dest="debug", help="dump received packets in hex")
    options = parser.parse_args()
 
    if options.download:
@@ -307,6 +310,7 @@ def Run():
    loop = 0
    store_file = None
 
+   sleep(1)
    while True:
       try:
          data = s.recv(14)
@@ -404,13 +408,15 @@ def Run():
                      pass
 
                if (len(buffer) >= log.length + 14):
-                  # print "Buf:", binascii.hexlify(buffer[:14]), "...", log.length
+                  if options.debug:
+                     print "Buf:", binascii.hexlify(buffer[:14]), "...", log.length
                   log = long_packet.parse(buffer)
                   buffer = buffer[log.length + 14:]
                else:
                   log = None
             else:
-               # print "Buf:", binascii.hexlify(buffer[:14])
+               if options.debug:
+                  print "Buf:", binascii.hexlify(buffer[:14])
                log = short_packet.parse(buffer)
                buffer = buffer[14:]
          except ConstError:
