@@ -86,6 +86,7 @@ registers = Struct("registers",
                 ),
             ),
          0x0204: Struct("Data", UBInt16("AutoMarkLevel")),
+         #0x0303: Value 0x01 seen?
          0x0600: Struct("Data", Enum(UBInt16("Reverb"),
                 OFF = 0,
                 ON = 1,
@@ -109,6 +110,24 @@ registers = Struct("registers",
                 ),
             ),
          0x0603: Struct("Data", UBInt16("ReverbLevel")),
+         0x0A02: Struct("Data", Padding(2), Enum(UBInt16("LCF"),
+                OFF = 0,
+                _40HZ = 1,
+                _80HZ = 2,
+                _120HZ = 3,
+                _220HZ = 4,
+                _default_ = Pass
+                ),
+            ),
+         0x0A03: Struct("Data", Padding(2), Enum(UBInt16("LV Control"),
+                OFF = 0,
+                LIMITER = 1,
+                PEAK = 2,
+                AUTO = 3,
+                _default_ = Pass
+                ),
+            ),
+         0x0B00: Struct("Data", ULInt16("RecordLevel")),
       },
       default = Pass,
    )
@@ -343,7 +362,8 @@ def Run():
 
          s.send("\x44\x52\x30\x42\x03\x03\x00\x00\x00\x00\x00\x00\x00\x00") # Read ???
 
-         s.send("\x44\x52\x30\x42\x0a\x80\x00\x00\x00\x00\x00\x00\x00\x00") # Read low cut/level control
+         s.send("\x44\x52\x30\x42\x0a\x02\x00\x00\x00\x00\x00\x00\x00\x00") # Read low cut
+         s.send("\x44\x52\x30\x42\x0a\x03\x00\x00\x00\x00\x00\x00\x00\x00") # Read level control
 
          s.send("\x44\x52\xf0\x41\x32\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Request Filename
          s.send("\x44\x52\x20\x42\x11\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Read Counter
