@@ -227,6 +227,10 @@ stream_data = Struct("StreamData",
    Bytes("StreamData", lambda ctx: ctx._.length),
 )
 
+sys_message = Struct("SysMessage",
+   Bytes("SysMessage", lambda ctx: ctx._.length),
+)
+
 # =====================================================================
 sys_info = Struct("sys_info",
    String("Name", 8),
@@ -283,6 +287,7 @@ long_packet = Struct("long_packet",
             file_name,
             file_data,
          ),
+         0x2033 : sys_message,
          0x2010 : Struct("Files",
             GreedyRange(file_entry),
          ),
