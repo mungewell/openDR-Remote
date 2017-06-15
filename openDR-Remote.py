@@ -16,8 +16,8 @@ registers = Struct("registers",
    Switch("Register", lambda ctx: ctx.register,
       {
          0x0100: Struct("Data", Enum(UBInt16("Format"),
-               BFW_24 = 0,
-               BFW_16 = 1,
+               BWF_24 = 0,
+               BWF_16 = 1,
                WAV_24 = 2,
                WAV_16 = 3,
                MP3_320 = 4,
@@ -75,6 +75,12 @@ registers = Struct("registers",
                DB_12 = 2,
                DB_24 = 3,
                DB_48 = 4,
+               _default_ = Pass
+                ),
+            ),
+         0x0202: Struct("Data", Enum(UBInt16("PeakMark"),
+               OFF = 0,
+               ON = 1,
                _default_ = Pass
                 ),
             ),
@@ -191,7 +197,6 @@ screeninfo = Struct("screeninfo",
       default = Pass,
    ),
 )
-
 updates = Struct("updates",
    Byte("type3"),
 
