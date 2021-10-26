@@ -10,12 +10,13 @@ from time import sleep
 
 import binascii
 
-registers = Struct("registers",
-   UBInt16("register"),
+registers = Struct(
+   "register" / Short,
 
-   Switch("Register", lambda ctx: ctx.register,
+   "Register" / Switch(this.register,
       {
-         0x0100: Struct("Data", Enum(UBInt16("Format"),
+         0x0100: "Format" / Struct(
+                 "Format" / Enum(Short,
                BWF_24 = 0,
                BWF_16 = 1,
                WAV_24 = 2,
@@ -25,29 +26,25 @@ registers = Struct("registers",
                MP3_192 = 6,
                MP3_128 = 7,
                MP3_96 = 8,
-               _default_ = Pass
-               ),
-            ),
-         0x0101: Struct("Data", Enum(UBInt16("SampleRate"),
+               )),
+         0x0101: "SampleRate" / Struct(
+                 "SampleRate" / Enum(Short,
                 KHZ_44_1 = 0,
                 KHZ_48 = 1,
                 KHZ_96 = 2,
-                _default_ = Pass
-                ),
-            ),
-         0x0102: Struct("Data", Enum(UBInt16("PreRecord"),
+                )),
+         0x0102: "PreRecord" / Struct(
+                 "PreRecord" / Enum(Short,
                 OFF = 0,
                 ON = 1,
-                _default_ = Pass
-                ),
-            ),
-         0x0108: Struct("Data", Enum(UBInt16("Channels"),
+                )),
+         0x0108: "Channels" / Struct(
+                 "Channels" / Enum(Short,
                 MONO = 0,
                 STEREO = 1,
-                _default_ = Pass
-                ),
-            ),
-         0x0109: Struct("Data", Enum(UBInt16("DualFormat"),
+                )),
+         0x0109: "DualFormat" / Struct(
+                 "DualFormat" / Enum(Short,
                OFF = 0,
                MP3_320 = 1,
                MP3_256 = 2,
@@ -56,132 +53,130 @@ registers = Struct("registers",
                MP3_96 = 5,
                MP3_64 = 6,
                MP3_32 = 7,
-               _default_ = Pass
-                ),
-            ),
-         0x0200: Struct("Data", Enum(UBInt16("TrackInc"),
+               )),
+         0x0200: "TrackInc" / Struct(
+                 "TrackInc" / Enum(Short,
                OFF = 0,
                MIN_5 = 1,
                MIN_10 = 2,
                MIN_15 = 3,
                MIN_30 = 4,
                MIN_60 = 5,
-               _default_ = Pass
-                ),
-            ),
-         0x0201: Struct("Data", Enum(UBInt16("AutoLevel"),
+               )),
+         0x0201: "AutoLevel" / Struct(
+                 "AutoLevel" / Enum(Short,
                OFF = 0,
                DB_6 = 1,
                DB_12 = 2,
                DB_24 = 3,
                DB_48 = 4,
-               _default_ = Pass
-                ),
-            ),
-         0x0202: Struct("Data", Enum(UBInt16("PeakMark"),
+               )),
+         0x0202: "PeakMark" / Struct(
+                 "PeakMark" / Enum(Short,
                OFF = 0,
                ON = 1,
-               _default_ = Pass
-                ),
-            ),
-         0x0203: Struct("Data", Enum(UBInt16("AutoMark"),
+               )),
+         0x0203: "AutoMark" / Struct(
+                 "AutoMark" / Enum(Short,
                OFF = 0,
                LEVEL = 1,
                TIME = 2,
-               _default_ = Pass
-                ),
-            ),
-         0x0204: Struct("Data", UBInt16("AutoMarkLevel")),
+               )),
+         0x0204: "AutoMarkLevel" / Struct(
+                 "AutoMarkLevel" / Short,
+               ),
          #0x0303: Value 0x01 seen?
-         0x0600: Struct("Data", Enum(UBInt16("Reverb"),
+
+         0x0600: "Reverb" / Struct(
+                 "Reverb" / Enum(Short,
                 OFF = 0,
                 ON = 1,
-                _default_ = Pass
-                ),
-            ),
-         0x0601: Struct("Data", Enum(UBInt16("ReverbType"),
+                )),
+         0x0601: "ReverbType" / Struct(
+                 "ReverbType" / Enum(Short,
                 HALL1 = 0,
                 HALL2 = 1,
                 ROOM = 2,
                 STUDIO = 3,
                 PLATE1 = 4,
                 PLATE2 = 5,
-                _default_ = Pass
-                ),
-            ),
-         0x0602: Struct("Data", Enum(UBInt16("ReverbMode"),
+                )),
+         0x0602: "ReverbMode" / Struct(
+                 "ReverbMode" / Enum(Short,
                 MONITOR = 0,
                 RECORD = 1,
-                _default_ = Pass
+                )),
+         0x0603: "ReverbLevel" / Struct(
+                 "ReverbLevel" / Short,
                 ),
-            ),
-         0x0603: Struct("Data", UBInt16("ReverbLevel")),
-         0x0A02: Struct("Data", Padding(2), Enum(UBInt16("LCF"),
+         0x0A02: "LCF" / Struct(
+                Padding(2),
+                "LCF" / Enum(Short,
                 OFF = 0,
                 HZ_40 = 1,
                 HZ_80 = 2,
                 HZ_120 = 3,
                 HZ_220 = 4,
-                _default_ = Pass
-                ),
-            ),
-         0x0A03: Struct("Data", Padding(2), Enum(UBInt16("LV Control"),
+                )),
+         0x0A03: "LV Control" / Struct(
+                Padding(2),
+                "LV Control" / Enum(Short,
                 OFF = 0,
                 LIMITER = 1,
                 PEAK = 2,
                 AUTO = 3,
-                _default_ = Pass
+                )),
+         0x0B00: "RecordLevel" / Struct(
+                 "RecordLevel" / Int16ul,
                 ),
-            ),
-         0x0B00: Struct("Data", ULInt16("RecordLevel")),
       },
-      default = Pass,
    )
 )
 
 # =====================================================================
 # Keep seperate as VU-Meters are very 'talkative'
-vumeters = Struct("VUMeters", Padding(1),
-   Peek(BitStruct("Flags",
-      Flag("Peek"),
+vumeters = Struct(
+   Padding(1),
+   "Flags" / Peek(BitStruct(
+      "Peek" / BitsInteger(1), 
       Padding(7),
-      Flag("12dB"),
+      "12dB" / BitsInteger(1),
       Padding(7),
    )),
-   UBInt8("left"),
-   UBInt8("right"),
+   "left" / Byte,
+   "right" / Byte,
 
-   Value("Left", lambda ctx: ctx.left & 0x7f),
-   Value("Right", lambda ctx: ctx.right & 0x7f),
+   "VU-Meters" / Struct(
+   "Left" / Computed(this._.left & 0x7f),
+   "Right" / Computed(this._.right & 0x7f),
 
    Padding(4),
-   SBInt8("Decimal-VU"),
+   "Decimal-VU" / Int8sb,
+   )
 )
 
-screeninfo = Struct("screeninfo",
-   Byte("type4"),
+screeninfo = Struct(
+   "type4" / Byte,
 
-   Switch("Update", lambda ctx: ctx.type4,
+   "ScreenInfo" / Switch(this.type4,
       {
-         0x03 :  Struct("Data",
-                     Enum(UBInt8("Audio Output"),
+         0x03 :  "Audio Output" / Struct(
+                     "Audio Output" / Enum(Byte,
                         SPEAKER = 0x01,
                         HEADPHONE = 0x02,
-                        _default_ = Pass
                      ),
                  ),
-         0x05 :  Struct("Data",
-                     Enum(UBInt8("Battery"),
+         0x05 :  "Battery" / Struct(
+                     "Battery" / Enum(Byte,
                         BAR0 = 0x00,
                         BAR1 = 0x01,
                         BAR2 = 0x02,
                         BAR3 = 0x03,
                         USB = 0x04,
-                        _default_ = Pass
                      ),
                  ),
-         0x07 : Struct("Data",
-                     Enum(UBInt8("Scene"),
+         0x07 : "Scene" / Struct(
+                     "Scene" / Enum(Byte,
                         EASY = 0x00,
                         LOUD = 0x01,
                         MUSIC = 0x02,
@@ -190,23 +185,19 @@ screeninfo = Struct("screeninfo",
                         MANUAL = 0x05,
                         DUB = 0x06,
                         PRACTICE = 0x07,
-                        _default_ = Pass
                      ),
                  ),
       },
       default = Pass,
    ),
 )
-updates = Struct("updates",
-   Byte("type3"),
 
-   If(lambda ctx: ctx.type3 == 0x12,
-      vumeters,
-   ),
-   If(lambda ctx: ctx.type3 != 0x12,
-   Switch("Update", lambda ctx: ctx.type3,
+updates = Struct(
+   "type3" / Byte,
+
+   "Update" / Switch(this.type3,
       {
-         0x00: Struct("Data", Enum(Byte("Status"),
+         0x00: "Status" / Struct("Status" / Enum(Byte,
                         STOPPED = 0x10,
                         PLAYING = 0x11,
                         PLAYPAUSED = 0x12,
@@ -217,134 +208,138 @@ updates = Struct("updates",
                         RECORD = 0x81,
                         ARMED = 0x82,
                         TIMER = 0x83,
-                        _default_ = Pass
                      ),
                      Padding(8),
                  ),
-         0x11 : Struct("Data", Padding(1),
-                     UBInt32("Counter"),
+         0x11 : "Counter" / Struct(Padding(1),
+                     "Counter" / Int,
                      Padding(4),
                  ),
-         0x20 : Embed(screeninfo)
+         0x12 : "VU-Meters" / vumeters,
+         0x20 : "ScreenInfo" / screeninfo
       },
       default = Pass,
-   ),
    ),
 )
 
 # =====================================================================
-file_entry = Struct("Files",
-   Peek(BitStruct("Directory",
-      Flag("Directory"),
+file_entry = Struct(
+   Peek("Directory" / BitStruct(
+      "Directory" / BitsInteger(1),
       Padding(7),
    )),
-   UBInt16("index"),
-   Value("Index", lambda ctx: ctx.index & 0x7fff),
+   "index" / Short,
+   "Index" / Computed(this.index & 0x7fff),
    Padding(8),
-
-   Peek(RepeatUntil(lambda obj, ctx: obj == "\x00\x0d", Field("data",2))),
-   Value("flength", lambda ctx: (len(ctx.data) - 1) * 2),
-   String("Filename", lambda ctx: ctx.flength, "utf-16-le"),
+   "data" / Peek(RepeatUntil(lambda obj,lst,ctx: obj == 0x000d, Short)),
+   "flength" / Computed(lambda ctx: (ctx.data.__len__() - 1) * 2),
+   "FileEntry" / PaddedString(this.flength, "utf-16-le"),
    Padding(2),
 )
 
-file_name = Struct("Filename",
-   String("Filename", lambda ctx: ctx._.length - 2, "utf-16-le"),
+file_name = Struct(
+   "Filename" / PaddedString(this._._.length - 2, "utf-16-le"),
 )
 
-file_data = Struct("FileData",
-   Bytes("FileData", lambda ctx: ctx._.length),
+file_data = Struct(
+   "FileData" / Bytes(this._._.length),
 )
 
-stream_data = Struct("StreamData",
-   Bytes("StreamData", lambda ctx: ctx._.length),
+stream_data = Struct(
+   "StreamData" / Bytes(this._._.length),
 )
 
-sys_message = Struct("SysMessage",
-   Bytes("SysMessage", lambda ctx: ctx._.length),
+sys_message = Struct(
+   "SysMessage" / Bytes(this._._.length),
 )
 
-input_info = Struct("InputInfo",
+input_info = Struct(
    Padding(4),
-   Enum(UBInt16("LCF"),
+   Enum("LCF" / Short,
       OFF = 0,
       HZ_40 = 1,
       HZ_80 = 2,
       HZ_120 = 3,
       HZ_220 = 4,
-      _default_ = Pass
       ),
-   Enum(UBInt16("LV Control"),
+   Enum("LV Control" / Short,
       OFF = 0,
       LIMITER = 1,
       PEAK = 2,
       AUTO = 3,
-      _default_ = Pass
       ),
 )
 # =====================================================================
-sys_info = Struct("sys_info",
-   String("Name", 8),
+sys_info = Struct(
+   "Name" / PaddedString(8, "utf8"),
    Padding(8),
-   UBInt16("Version"),
-   UBInt16("Build"),
-   UBInt16("Wifi1"),
-   UBInt16("Wifi2"),
+   "Version" / Short,
+   "Build" / Short,
+   "Wifi1" / Short,
+   "Wifi2" / Short,
 )
 
 # =====================================================================
-check_packet = Struct("check_packet",
-   Magic("DR"),
-   BitStruct("Flags",
+check_packet = Struct(
+   Const(b"DR"),
+   "Flags" / BitStruct(
       Padding(1),
-      Flag("Long"),
+      "Long" / BitsInteger(1),
       Padding(6),
    ),
    Padding(9),
-   UBInt16("length"),
+   "length" / Short,
 )
 
-short_packet = Struct("short_packet",
-   Magic("DR"),
-   UBInt16("type"),
+short_packet = Struct(
+   Const(b"DR"),
+   "type" / Short,
 
-   Switch("Type", lambda ctx: ctx.type,
+   "Data" / Switch(this.type,
       {
-         0x2020 : Embed(updates),
-         0x3020 : Embed(registers),
+         0x2020 : "Updates" / updates,
+         0x3020 : "Registers" / registers,
       },
       default = Pass,
    ),
 )
 
-long_packet = Struct("long_packet",
-   Magic("DR"),
-   Peek(UBInt8("type1")),
-   BitStruct("Flags",
+long_packet = Struct(
+   Const(b"DR"),
+   "type1" / Peek(Short),
+   "Flags" / BitStruct(
       Padding(1),
-      Flag("Long"),
+      "Long" / BitsInteger(1),
       Padding(6),
    ),
-   UBInt16("type"),
+   "type" / Short,
 
    Padding(7),
-   UBInt16("length"),
+   "length" / Short,
 
-   Switch("System", lambda ctx: ctx.type,
+   "System" / Switch(this.type,
       {
-         0x2000 : sys_info,
-         0x2020 : stream_data,
-         0x2031 : input_info,
-         0x2032 : IfThenElse("data", lambda ctx: ctx.type1 == 0xf0,
-            file_name,
-            file_data,
+         0x2000 : "SysInfo" / Struct(
+                  "SysInfo" / sys_info,
          ),
-         0x2033 : sys_message,
-         0x2010 : Struct("Files",
-            GreedyRange(file_entry),
+         0x2020 : "StreamData" / Struct(
+                  "StreamData" / stream_data,
+         ),
+         0x2031 : "InputInfo" / Struct(
+                  "InputInfo" / input_info,
+         ),
+         0x2032 : "FileName" / Struct(
+                  "FileName" / IfThenElse(this._.type == 0xf0,
+            file_data,
+            file_name,
+         )),
+         0x2033 : "SysMessage" / Struct(
+                  "SysMessage" / sys_message,
+         ),
+         0x2010 : "FileEntry" / Struct(
+                  "FileEntry" / file_entry,
          ),
       },
-      default = Pass,
    ),
 )
 # =====================================================================
@@ -383,9 +378,9 @@ def Run():
    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
    s.connect((options.tcp, int(options.port)))
    s.settimeout(0.001)
-   buffer = ""
+   buffer = b""
    loop = 0
-   store_file = None
+   storage_file = None
 
    sleep(1)
    while True:
@@ -396,54 +391,54 @@ def Run():
          pass
 
       if loop == 0:
-         s.send("\x44\x52\x20\x42\x07\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send(b"\x44\x52\x20\x42\x07\x00\x00\x00\x00\x00\x00\x00\x00\x00")
 
       if options.reg:
-         for reg in range(10):
-            s.send("\x44\x52\x30\x42" + chr(int(options.reg)) + chr(reg) + \
-               "\x00\x00\x00\x00\x00\x00\x00\x00") # Read 
+         for reg in range(16):
+            s.send(bytes("\x44\x52\x30\x42" + chr(int(options.reg)) + chr(reg) + \
+               "\x00\x00\x00\x00\x00\x00\x00\x00", "utf-8")) # Read 
          options.reg = False
 
       if options.info:
-         s.send("\x44\x52\xf0\x41\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00") # Request SysInfo
+         s.send(b"\x44\x52\xf0\x41\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00") # Request SysInfo
 
-         s.send("\x44\x52\x30\x42\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Read File Type
-         s.send("\x44\x52\x30\x42\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00") # Read Sample Rate
-         s.send("\x44\x52\x30\x42\x01\x02\x00\x00\x00\x00\x00\x00\x00\x00") # Read PreRecord
-         s.send("\x44\x52\x30\x42\x01\x08\x00\x00\x00\x00\x00\x00\x00\x00") # Read Channels
-         s.send("\x44\x52\x30\x42\x01\x09\x00\x00\x00\x00\x00\x00\x00\x00") # Read Dual Mode
+         s.send(b"\x44\x52\x30\x42\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Read File Type
+         s.send(b"\x44\x52\x30\x42\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00") # Read Sample Rate
+         s.send(b"\x44\x52\x30\x42\x01\x02\x00\x00\x00\x00\x00\x00\x00\x00") # Read PreRecord
+         s.send(b"\x44\x52\x30\x42\x01\x08\x00\x00\x00\x00\x00\x00\x00\x00") # Read Channels
+         s.send(b"\x44\x52\x30\x42\x01\x09\x00\x00\x00\x00\x00\x00\x00\x00") # Read Dual Mode
 
-         s.send("\x44\x52\x30\x42\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Read Auto Track Inc
-         s.send("\x44\x52\x30\x42\x02\x01\x00\x00\x00\x00\x00\x00\x00\x00") # Read Auto Level
-         s.send("\x44\x52\x30\x42\x02\x03\x00\x00\x00\x00\x00\x00\x00\x00") # Read Auto Mark
-         s.send("\x44\x52\x30\x42\x02\x04\x00\x00\x00\x00\x00\x00\x00\x00") # Read Auto Mark Level
+         s.send(b"\x44\x52\x30\x42\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Read Auto Track Inc
+         s.send(b"\x44\x52\x30\x42\x02\x01\x00\x00\x00\x00\x00\x00\x00\x00") # Read Auto Level
+         s.send(b"\x44\x52\x30\x42\x02\x03\x00\x00\x00\x00\x00\x00\x00\x00") # Read Auto Mark
+         s.send(b"\x44\x52\x30\x42\x02\x04\x00\x00\x00\x00\x00\x00\x00\x00") # Read Auto Mark Level
 
-         s.send("\x44\x52\x30\x42\x03\x03\x00\x00\x00\x00\x00\x00\x00\x00") # Read ???
+         s.send(b"\x44\x52\x30\x42\x03\x03\x00\x00\x00\x00\x00\x00\x00\x00") # Read ???
 
-         s.send("\x44\x52\x30\x42\x0a\x02\x00\x00\x00\x00\x00\x00\x00\x00") # Read low cut
-         s.send("\x44\x52\x30\x42\x0a\x03\x00\x00\x00\x00\x00\x00\x00\x00") # Read level control
+         s.send(b"\x44\x52\x30\x42\x0a\x02\x00\x00\x00\x00\x00\x00\x00\x00") # Read low cut
+         s.send(b"\x44\x52\x30\x42\x0a\x03\x00\x00\x00\x00\x00\x00\x00\x00") # Read level control
 
-         s.send("\x44\x52\xf0\x41\x32\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Request Filename
-         s.send("\x44\x52\x20\x42\x11\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Read Counter
-         s.send("\x44\x52\x20\x42\x20\x07\x00\x00\x00\x00\x00\x00\x00\x00") # Read Scene
-         s.send("\x44\x52\x20\x42\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Read Status
+         s.send(b"\x44\x52\xf0\x41\x32\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Request Filename
+         s.send(b"\x44\x52\x20\x42\x11\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Read Counter
+         s.send(b"\x44\x52\x20\x42\x20\x07\x00\x00\x00\x00\x00\x00\x00\x00") # Read Scene
+         s.send(b"\x44\x52\x20\x42\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00") # Read Status
          options.info = False
 
       if (options.stream):
-         s.send("\x44\x52\xf0\x41\x21\x01\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send(b"\x44\x52\xf0\x41\x21\x01\x00\x00\x00\x00\x00\x00\x00\x00")
          stream_file = open("stream.dat", "wb")
          options.stream= False
 
       if (options.play):
-         s.send("\x44\x52\x10\x41\x00\x09\x00\x00\x00\x00\x00\x00\x00\x00") # Press "Play"
+         s.send(b"\x44\x52\x10\x41\x00\x09\x00\x00\x00\x00\x00\x00\x00\x00") # Press "Play"
          options.play = False
 
       if (options.rec):
-         s.send("\x44\x52\x10\x41\x00\x0b\x00\x00\x00\x00\x00\x00\x00\x00") # Press "Record"
+         s.send(b"\x44\x52\x10\x41\x00\x0b\x00\x00\x00\x00\x00\x00\x00\x00") # Press "Record"
          options.rec = False
 
       if (options.stop):
-         s.send("\x44\x52\x10\x41\x00\x08\x00\x00\x00\x00\x00\x00\x00\x00") # Press "Stop"
+         s.send(b"\x44\x52\x10\x41\x00\x08\x00\x00\x00\x00\x00\x00\x00\x00") # Press "Stop"
          options.stop= False
 
       if (options.keycode):
@@ -465,34 +460,34 @@ def Run():
 
          54,86 = Init WiFi update
          '''
-         s.send("\x44\x52\x10\x41\x00"+chr(int(options.keycode))+ \
-             "\x00\x00\x00\x00\x00\x00\x00\x00") # Send Keycode
+         s.send(bytes("\x44\x52\x10\x41\x00"+chr(int(options.keycode))+ \
+             "\x00\x00\x00\x00\x00\x00\x00\x00")) # Send Keycode
          options.keycode = False
 
       if options.listing:
-         s.send("\x44\x52\x40\x41\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+         s.send(b"\x44\x52\x40\x41\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00")
          options.listing = False
 
       if options.level:
-         s.send("\x44\x52\x30\x41\x0b\x00" + \
+         s.send(bytes("\x44\x52\x30\x41\x0b\x00" + \
             chr(int(options.level))+chr(int(options.level)) + \
-            "\x00\x00\x00\x00\x00\x00")
+            "\x00\x00\x00\x00\x00\x00"))
          options.level = False
 
       if options.clock:
          now = datetime.datetime.now()
-         print "Setting the clock to:", now
+         print("Setting the clock to:", now)
          # For some reason you have to send this twice
-         s.send("\x44\x52\x30\x41\x07\x00" + \
+         s.send(bytes("\x44\x52\x30\x41\x07\x00" + \
             chr(int(now.year) >> 8) + chr(int(now.year) & 0xFF) + \
             chr(int(now.month)) +  chr(int(now.day)) + \
             chr(int(now.hour)) + chr(int(now.minute)) + \
-            chr(int(now.second)) + "\x00")
-         s.send("\x44\x52\x30\x41\x07\x00" + \
+            chr(int(now.second)) + "\x00"))
+         s.send(bytes("\x44\x52\x30\x41\x07\x00" + \
             chr(int(now.year) >> 8) + chr(int(now.year) & 0xFF) + \
             chr(int(now.month)) +  chr(int(now.day)) + \
             chr(int(now.hour)) + chr(int(now.minute)) + \
-            chr(int(now.second)) + "\x00")
+            chr(int(now.second)) + "\x00"))
          options.clock = False
 
       if (len(buffer) >= 14):
@@ -510,14 +505,14 @@ def Run():
 
                if (len(buffer) >= log.length + 14):
                   if options.debug:
-                     print "Buf:", binascii.hexlify(buffer[:14]), "...", log.length
+                     print("Buf:", binascii.hexlify(buffer[:32]), "...", log.length)
                   log = long_packet.parse(buffer)
                   buffer = buffer[log.length + 14:]
                else:
                   log = None
             else:
                if options.debug:
-                  print "Buf:", binascii.hexlify(buffer[:14])
+                  print("Buf:", binascii.hexlify(buffer[:14]))
                log = short_packet.parse(buffer)
                buffer = buffer[14:]
          except ConstError:
@@ -530,27 +525,32 @@ def Run():
       loop = loop + 1
 
       if log:
-         if log.get('Update'):
-            print log.Update
-         if log.get('Register'):
-            print log.Register
-         if log.get('VUMeters') and options.vu:
-            print log.VUMeters
+         #print(log)
+         if log.get('Data'):
+            if log.Data.get('Update'):
+               print(log.Data.Update)
+            if log.Data.get('Register'):
+               print(log.Data.Register)
+            if log.Data.get('VU-Meters') and options.vu:
+               print(log.Data.VUMeters)
          if log.get('System'):
             if log.System.get('Files'):
                for x in range(len(log.System.Files)):
                   if options.download:
                      if int(options.download) == log.System.Files[x].Index:
                         storage_file = open(log.System.Files[x].Filename, "wb")
-                        s.send("\x44\x52\x40\x41\x30\x00\x00"+chr(int(options.download))+"\x00\x00\x00\x00\x00\x00")
-                        print "*",
-                  print log.System.Files[x].Index, "=", log.System.Files[x].Filename
+                        s.send(bytes("\x44\x52\x40\x41\x30\x00\x00"+chr(int(options.download))
+                            +"\x00\x00\x00\x00\x00\x00"))
+                        print("*",)
+                  print(log.System.Files[x].Index, "=", log.System.Files[x].Filename)
             elif log.System.get('FileData') and storage_file:
                storage_file.write(log.System.FileData)
             elif log.System.get('StreamData') and stream_file:
                stream_file.write(log.System.StreamData)
+            elif log.System.get('FileEntry'):
+               print(log.System.FileEntry.Index, ":", log.System.FileEntry.FileEntry)
             else:
-               print log.System
+               print(log.System)
 
 if __name__ == '__main__':
    Run()
