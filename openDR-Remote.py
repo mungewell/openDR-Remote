@@ -26,6 +26,8 @@ registers = Struct(
                MP3_192 = 6,
                MP3_128 = 7,
                MP3_96 = 8,
+               MP3_64 = 9,
+               MP3_32 = 10,
                )),
          0x0101: "SampleRate" / Struct(
                  "SampleRate" / Enum(Short,
@@ -38,13 +40,47 @@ registers = Struct(
                 OFF = 0,
                 ON = 1,
                 )),
+         0x0103: "SelfTimer" / Struct(
+                 "SelfTimer" / Enum(Short,
+               OFF = 0,
+               SEC_5 = 1,
+               SEC_10 = 2,
+               )),
+         0x0104: "DualRec" / Struct(
+                 "DualRec" / Enum(Short,
+               OFF = 0,
+               LEVEL = 1,
+               FORMAT = 2,
+               )),
+         0x0105: "DualFormat44" / Struct(
+                 "DualFormat44" / Enum(Short,
+               OFF = 0,
+               MP3_320 = 1,
+               MP3_256 = 2,
+               MP3_192 = 3,
+               MP3_128 = 4,
+               MP3_96 = 5,
+               MP3_64 = 6,
+               MP3_32 = 7,
+               )),
+         0x0106: "MSDecode" / Struct(
+                 "MSDecode" / Enum(Short,
+               OFF = 0,
+               REC = 1,
+               PLAY = 2,
+               )),
+         0x0107: "MSSource" / Struct(
+                 "MSSource" / Enum(Short,
+                ONE_TWO = 0,
+                THREE_FOUR = 1,
+                )),
          0x0108: "Channels" / Struct(
                  "Channels" / Enum(Short,
                 MONO = 0,
                 STEREO = 1,
                 )),
-         0x0109: "DualFormat" / Struct(
-                 "DualFormat" / Enum(Short,
+         0x0109: "DualFormat22" / Struct(
+                 "DualFormat22" / Enum(Short,
                OFF = 0,
                MP3_320 = 1,
                MP3_256 = 2,
@@ -83,8 +119,22 @@ registers = Struct(
                TIME = 2,
                )),
          0x0204: "AutoMarkLevel" / Struct(
-                 "AutoMarkLevel" / Short,
-               ),
+                 "AutoMarkLevel" / Enum(Short,
+               DB_6 = 0,    # for LEVEL
+               DB_12 = 1,
+               DB_24 = 2,
+               DB_48 = 3,
+               MIN_5 = 4,   # for TIME
+               MIN_10 = 5,
+               MIN_15 = 6,
+               MIN_30 = 7,
+               MIN_60 = 8,
+               )),
+         0x0205: "AutoPunch" / Struct(
+                 "AutoPunch" / Enum(Short,
+                OFF = 0,
+                ON = 1,
+                )),
          #0x0303: Value 0x01 seen?
 
          0x0600: "Reverb" / Struct(
@@ -101,14 +151,17 @@ registers = Struct(
                 PLATE1 = 4,
                 PLATE2 = 5,
                 )),
-         0x0602: "ReverbMode" / Struct(
-                 "ReverbMode" / Enum(Short,
-                MONITOR = 0,
-                RECORD = 1,
+         0x0602: "ReverbSource" / Struct(
+                 "ReverbSource" / Enum(Short,
+                MIX = 0,
+                INT_MIC = 1,
+                EXT_IN= 2,
                 )),
          0x0603: "ReverbLevel" / Struct(
                  "ReverbLevel" / Short,
                 ),
+         # Buf: b'445230200a000040000100000000' - Track1 link
+         # Buf: b'445230200a010040000100000000' - Track1 delay
          0x0A02: "LCF" / Struct(
                 Padding(2),
                 "LCF" / Enum(Short,
@@ -118,16 +171,20 @@ registers = Struct(
                 HZ_120 = 3,
                 HZ_220 = 4,
                 )),
-         0x0A03: "LV Control" / Struct(
+         0x0A03: "LVControl" / Struct(
                 Padding(2),
-                "LV Control" / Enum(Short,
+                "LVControl" / Enum(Short,
                 OFF = 0,
                 LIMITER = 1,
                 PEAK = 2,
                 AUTO = 3,
                 )),
          0x0B00: "RecordLevel" / Struct(
-                 "RecordLevel" / Int16ul,
+                "INT_L" / Byte,
+                "INT_R" / Byte,
+                "EXT_1" / Byte,
+                "EXT_2" / Byte,
+                "unknown" / Array(4, Byte),
                 ),
       },
    )
@@ -135,24 +192,17 @@ registers = Struct(
 
 # =====================================================================
 # Keep seperate as VU-Meters are very 'talkative'
+
 vumeters = Struct(
    Padding(1),
-   "Flags" / Peek(BitStruct(
-      "Peek" / BitsInteger(1), 
-      Padding(7),
+   "VUMeters" / Array(3, BitStruct(        # CH1&2, CH3&4, Stereo
+      "Peek" / BitsInteger(1),
+      "BarL" / BitsInteger(7),
       "12dB" / BitsInteger(1),
-      Padding(7),
+      "BarR" / BitsInteger(7),
    )),
-   "left" / Byte,
-   "right" / Byte,
 
-   "VU-Meters" / Struct(
-   "Left" / Computed(this._.left & 0x7f),
-   "Right" / Computed(this._.right & 0x7f),
-
-   Padding(4),
-   "Decimal-VU" / Int8sb,
-   )
+   "DecimalVU" / Int8sb,
 )
 
 screeninfo = Struct(
@@ -160,10 +210,23 @@ screeninfo = Struct(
 
    "ScreenInfo" / Switch(this.type4,
       {
-         0x03 :  "Audio Output" / Struct(
-                     "Audio Output" / Enum(Byte,
+         0x02 : "Reverb" / Struct(
+                     "Reverb" / Enum(Byte,
+                        OFF = 0x00,
+                        ON = 0x01,
+                        SEND = 0x02,
+                     ),
+                 ),
+         0x03 :  "AudioOut" / Struct(
+                     "AudioOut" / Enum(Byte,
                         SPEAKER = 0x01,
                         HEADPHONE = 0x02,
+                     ),
+                 ),
+         0x04 : "Phantom" / Struct("Phantom" / Enum(Byte,
+                        OFF = 0x00,
+                        ON_48 = 0x01,
+                        ON_24 = 0x02,
                      ),
                  ),
          0x05 :  "Battery" / Struct(
@@ -185,6 +248,32 @@ screeninfo = Struct(
                         MANUAL = 0x05,
                         DUB = 0x06,
                         PRACTICE = 0x07,
+                     ),
+                 ),
+         0x09 : "LCF" / Struct("LCF" / Enum(Byte,
+                        OFF = 0x00,
+                        ON = 0x01,
+                     ),
+                 ),
+         0x0A : "LMT" / Struct("LMT" / Enum(Byte,
+                        OFF = 0x00,
+                        ON = 0x01,
+                     ),
+                 ),
+         0x0B : "PEAK" / Struct("PEAK" / Enum(Byte,
+                        OFF = 0x00,
+                        ON = 0x01,
+                        AUTO = 0x02
+                     ),
+                 ),
+         0x0E : "AUTOREC" / Struct("AUTOREC" / Enum(Byte,
+                        OFF = 0x00,
+                        ON = 0x01,
+                     ),
+                 ),
+         0x0F : "MIC_PWR" / Struct("MIC_PWR" / Enum(Byte,
+                        OFF = 0x00,
+                        ON = 0x01,
                      ),
                  ),
       },
@@ -215,8 +304,16 @@ updates = Struct(
                      "Counter" / Int,
                      Padding(4),
                  ),
-         0x12 : "VU-Meters" / vumeters,
-         0x20 : "ScreenInfo" / screeninfo
+         0x12 : "VUMeters" / vumeters,
+         0x20 : "ScreenInfo" / screeninfo,
+         # Buf: b'4452202021800000020200000000' - track active
+         #                ^^??11223344
+         0x21 : "Arm" / Struct(Padding(1),
+                     "CH1" / Byte,
+                     "CH2" / Byte,
+                     "CH3" / Byte,
+                     "CH4" / Byte,
+                 ),
       },
       default = Pass,
    ),
@@ -245,6 +342,8 @@ file_data = Struct(
    "FileData" / Bytes(this._._.length),
 )
 
+# Buf: b'4452202012000000000000008010'
+# what does this signal? - DR-22WL
 stream_data = Struct(
    "StreamData" / Bytes(this._._.length),
 )
@@ -254,20 +353,33 @@ sys_message = Struct(
 )
 
 input_info = Struct(
-   Padding(4),
-   Enum("LCF" / Short,
-      OFF = 0,
-      HZ_40 = 1,
-      HZ_80 = 2,
-      HZ_120 = 3,
-      HZ_220 = 4,
-      ),
-   Enum("LV Control" / Short,
-      OFF = 0,
-      LIMITER = 1,
-      PEAK = 2,
-      AUTO = 3,
-      ),
+
+   "Channels" / IfThenElse(this._._.length == 0x14,
+      "Channels" / Computed(1),
+      "Channels" / Computed(4),
+   ),
+   "InputInfo" / Array(this.Channels, "InputInfo"/ Struct(
+      Padding(1),
+      "Link" / Enum(Byte,
+         OFF = 0,
+         ON = 1,
+         ),
+      "Delay" / Short,
+      "LCF" / Enum(Short,
+         OFF = 0,
+         HZ_40 = 1,
+         HZ_80 = 2,
+         HZ_120 = 3,
+         HZ_220 = 4,
+         ),
+      "LV Control" / Enum(Short,
+         OFF = 0,
+         LIMITER = 1,
+         PEAK = 2,
+         AUTO = 3,
+         ),
+       Padding(2),
+   )),
 )
 # =====================================================================
 sys_info = Struct(
@@ -325,6 +437,7 @@ long_packet = Struct(
          0x2020 : "StreamData" / Struct(
                   "StreamData" / stream_data,
          ),
+         # Buf: b'4452202280000000000000000000'
          0x2031 : "InputInfo" / Struct(
                   "InputInfo" / input_info,
          ),
@@ -361,6 +474,7 @@ def Run():
    parser.add_argument("-S", "--stream", action="store_true", dest="stream", help="use streaming audio")
    parser.add_argument("-L", "--level", dest="level", help="set input level for recording [0-90]")
    parser.add_argument("-v", "--vu", action="store_true", dest="vu", help="show vu meters (verbose)")
+   parser.add_argument("-m", "--mtr", action="store_true", dest="mtr", help="mtr mode (DR-44WL only)")
 
    parser.add_argument("-c", "--clock", action="store_true", dest="clock", help="set clock to match PC's")
    parser.add_argument("-r", "--reg", dest="reg", help="read register bank [0-9]")
@@ -461,17 +575,17 @@ def Run():
          54,86 = Init WiFi update
          '''
          s.send(bytes("\x44\x52\x10\x41\x00"+chr(int(options.keycode))+ \
-             "\x00\x00\x00\x00\x00\x00\x00\x00")) # Send Keycode
+             "\x00\x00\x00\x00\x00\x00\x00\x00", "utf-8")) # Send Keycode
          options.keycode = False
 
       if options.listing:
          s.send(b"\x44\x52\x40\x41\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00")
          options.listing = False
 
-      if options.level:
+      if options.level: # sets Ch 1+2, 3+4 zero'ed
          s.send(bytes("\x44\x52\x30\x41\x0b\x00" + \
             chr(int(options.level))+chr(int(options.level)) + \
-            "\x00\x00\x00\x00\x00\x00"))
+            "\x00\x00\x00\x00\x00\x00", "utf-8"))
          options.level = False
 
       if options.clock:
@@ -482,12 +596,12 @@ def Run():
             chr(int(now.year) >> 8) + chr(int(now.year) & 0xFF) + \
             chr(int(now.month)) +  chr(int(now.day)) + \
             chr(int(now.hour)) + chr(int(now.minute)) + \
-            chr(int(now.second)) + "\x00"))
+            chr(int(now.second)) + "\x00", "utf-8"))
          s.send(bytes("\x44\x52\x30\x41\x07\x00" + \
             chr(int(now.year) >> 8) + chr(int(now.year) & 0xFF) + \
             chr(int(now.month)) +  chr(int(now.day)) + \
             chr(int(now.hour)) + chr(int(now.minute)) + \
-            chr(int(now.second)) + "\x00"))
+            chr(int(now.second)) + "\x00", "utf-8"))
          options.clock = False
 
       if (len(buffer) >= 14):
@@ -525,14 +639,29 @@ def Run():
       loop = loop + 1
 
       if log:
-         #print(log)
          if log.get('Data'):
             if log.Data.get('Update'):
-               print(log.Data.Update)
+               if log.Data.Update.get('VUMeters'):
+                  if options.vu:
+                     bar = (" " * 32) + ("*" * 32) + (" " * 32)
+                     if options.mtr:
+                        pick = [2, 0, 1]
+                     else:
+                        pick = [0]
+
+                     for p in pick:
+                        l = log.Data.Update.VUMeters[p].BarL
+                        r = log.Data.Update.VUMeters[p].BarR
+                        if p == pick[0]:
+                           d = log.Data.Update.DecimalVU
+                        else:
+                           d = "   "
+
+                        print("%s : %4s : %s" % (bar[l:l+32], d, bar[64-r:96-r]))
+               else:
+                   print(":", log.Data.Update)
             if log.Data.get('Register'):
                print(log.Data.Register)
-            if log.Data.get('VU-Meters') and options.vu:
-               print(log.Data.VUMeters)
          if log.get('System'):
             if log.System.get('Files'):
                for x in range(len(log.System.Files)):
@@ -540,7 +669,7 @@ def Run():
                      if int(options.download) == log.System.Files[x].Index:
                         storage_file = open(log.System.Files[x].Filename, "wb")
                         s.send(bytes("\x44\x52\x40\x41\x30\x00\x00"+chr(int(options.download))
-                            +"\x00\x00\x00\x00\x00\x00"))
+                            +"\x00\x00\x00\x00\x00\x00", "utf-8"))
                         print("*",)
                   print(log.System.Files[x].Index, "=", log.System.Files[x].Filename)
             elif log.System.get('FileData') and storage_file:
