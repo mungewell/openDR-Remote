@@ -476,6 +476,60 @@ long_packet = Struct(
     ),
 )
 
+# =====================================================================
+# For setting configuration
+
+# Note Ch3&4 on DR-44WL have differ scale/range
+set_level = Struct(
+    Const(b"\x44\x52\x30\x41\x0b\x00"),
+    "Level1" / Byte,
+    "Level2" / Byte,
+    "Level3" / Byte,
+    "Level4" / Byte,
+    Const(b"\x00\x00\x00\x00"),
+)
+
+set_clock = Struct(
+    Const(b"\x44\x52\x30\x41\x07\x00"),
+    "Year" / Short,
+    "Month" / Byte,
+    "Day" / Byte,
+    "Hour" / Byte,
+    "Minute" / Byte,
+    "Second" / Byte,
+    Const(b"\x00"),
+)
+
+get_reg_bank = Struct(
+    Const(b"\x44\x52\x30\x42"),
+    "Bank" / Byte,
+    "Reg" / Byte,
+    Const(b"\x00\x00\x00\x00\x00\x00\x00\x00"),
+)
+
+'''
+Stop = 0x08, works - rec stops, play 2 needed = pause + stop
+Play = 0x09, works
+Pause = 0x0a, 10, not working
+Record = 0x0b = 11, works, 2nd pause
+FFSearch = 0x0c, 12, works - sticky
+RewSearch = 0x0d, 13, works - sticky
+FFSkip = 0x0e, 14, works
+RewSkip = 0x0f, 15, works
+Mark = 0x18, 24, works (in record)
+Repeat = 0x19, 25, not working (in play)
+F1 = 0x1c, 28, not works
+F2 = 0x1d, 29, not works
+F3 = 0x1e, 30, not works
+F4 = 0x1f, 31, not works
+
+54,86 = Init WiFi update
+'''
+send_keycode = Struct(
+    Const(b"\x44\x52\x10\x41\x00"),
+    "Keycode" / Byte,
+    Const(b"\x00\x00\x00\x00\x00\x00\x00\x00"),
+    )
 
 # =====================================================================
 def Run():
@@ -587,8 +641,7 @@ def Run():
 
         if options.reg:
             for reg in range(16):  # Read block of registers
-                s.send(bytes("\x44\x52\x30\x42" + chr(int(options.reg)) + chr(reg) + \
-                   "\x00\x00\x00\x00\x00\x00\x00\x00", "utf-8"))
+                s.send(get_reg_bank.build({ "Bank": int(options.reg), "Reg": reg}))
             options.reg = False
 
         if options.info:
@@ -639,65 +692,47 @@ def Run():
             options.stream = False
 
         if (options.play):
-            s.send(b"\x44\x52\x10\x41\x00\x09\x00\x00\x00\x00\x00\x00\x00\x00")
+            s.send(send_keycode.build({"Keycode": 0x09}))
             options.play = False
-
         if (options.rec):
-            s.send(b"\x44\x52\x10\x41\x00\x0b\x00\x00\x00\x00\x00\x00\x00\x00")
+            s.send(send_keycode.build({"Keycode": 0x0b}))
             options.rec = False
-
         if (options.stop):
-            s.send(b"\x44\x52\x10\x41\x00\x08\x00\x00\x00\x00\x00\x00\x00\x00")
+            s.send(send_keycode.build({"Keycode": 0x08}))
             options.stop = False
-
         if (options.keycode):
-            '''
-            Stop = 0x08, works - rec stops, play 2 needed = pause + stop
-            Play = 0x09, works
-            Pause = 0x0a, 10, not working
-            Record = 0x0b = 11, works, 2nd pause
-            FFSearch = 0x0c, 12, works - sticky
-            RewSearch = 0x0d, 13, works - sticky
-            FFSkip = 0x0e, 14, works
-            RewSkip = 0x0f, 15, works
-            Mark = 0x18, 24, works (in record)
-            Repeat = 0x19, 25, not working (in play)
-            F1 = 0x1c, 28, not works
-            F2 = 0x1d, 29, not works
-            F3 = 0x1e, 30, not works
-            F4 = 0x1f, 31, not works
-
-            54,86 = Init WiFi update
-            '''
-            s.send(bytes("\x44\x52\x10\x41\x00"+chr(int(options.keycode))+ \
-                "\x00\x00\x00\x00\x00\x00\x00\x00", "utf-8")) # Send Keycode
+            s.send(send_keycode.build({"Keycode": int(options.keycode)}))
             options.keycode = False
 
         if options.listing:
             s.send(b"\x44\x52\x40\x41\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00")
             options.listing = False
 
-        if options.level:  # sets Ch 1+2, 3+4 zero'ed
-            s.send(bytes("\x44\x52\x30\x41\x0b\x00" + \
-               chr(int(options.level))+chr(int(options.level)) + \
-               "\x00\x00\x00\x00\x00\x00", "utf-8"))
+        if options.level:
+            s.send(set_level.build({ \
+                "Level1": int(options.level),
+                "Level2": int(options.level),
+                "Level3": 0,
+                "Level4": 0,
+                }))
             options.level = False
 
         if options.clock:
             now = datetime.datetime.now()
             print("Setting the clock to:", now)
 
+            clock = set_clock.build({ \
+                "Year":   now.year,
+                "Month":  now.month,
+                "Day":    now.day,
+                "Hour":   now.hour,
+                "Minute": now.minute,
+                "Second": now.second,
+                })
+
             # For some reason you have to send this twice
-            s.send(bytes("\x44\x52\x30\x41\x07\x00" + \
-               chr(int(now.year) >> 8) + chr(int(now.year) & 0xFF) + \
-               chr(int(now.month)) +  chr(int(now.day)) + \
-               chr(int(now.hour)) + chr(int(now.minute)) + \
-               chr(int(now.second)) + "\x00", "utf-8"))
-            s.send(bytes("\x44\x52\x30\x41\x07\x00" + \
-               chr(int(now.year) >> 8) + chr(int(now.year) & 0xFF) + \
-               chr(int(now.month)) +  chr(int(now.day)) + \
-               chr(int(now.hour)) + chr(int(now.minute)) + \
-               chr(int(now.second)) + "\x00", "utf-8"))
+            s.send(clock)
+            s.send(clock)
             options.clock = False
 
         if (len(buffer) >= 14):
