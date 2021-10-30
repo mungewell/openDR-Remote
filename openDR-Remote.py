@@ -709,12 +709,21 @@ def Run():
             options.listing = False
 
         if options.level:
-            s.send(set_level.build({ \
-                "Level1": int(options.level),
-                "Level2": int(options.level),
-                "Level3": 0,
-                "Level4": 0,
-                }))
+            if options.mtr:
+                l = options.level.split(",")
+                s.send(set_level.build({ \
+                    "Level1": int(l[0]),
+                    "Level2": int(l[1]),
+                    "Level3": int(l[2]),
+                    "Level4": int(l[3]),
+                    }))
+            else:
+                s.send(set_level.build({ \
+                    "Level1": int(options.level),
+                    "Level2": int(options.level),
+                    "Level3": 0,
+                    "Level4": 0,
+                    }))
             options.level = False
 
         if options.clock:
