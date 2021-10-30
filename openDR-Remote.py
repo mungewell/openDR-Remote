@@ -143,6 +143,7 @@ registers = Struct(
                 MIN_15=6,
                 MIN_30=7,
                 MIN_60=8,
+                OFF=9,
             )),
             0x0205:
             "AutoPunch" / Struct("AutoPunch" / Enum(
