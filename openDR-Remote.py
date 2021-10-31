@@ -361,8 +361,7 @@ file_entry = Struct(
     Padding(8),
     "data" / Peek(RepeatUntil(lambda obj, lst, ctx: obj == 0x000d, Short)),
     "flength" / Computed(lambda ctx: (ctx.data.__len__() - 1) * 2),
-    "FileEntry" / PaddedString(this.flength, "utf-16-le"),
-    Padding(2),
+    "Name" / PaddedString(this.flength, "utf-16-le"),
 )
 
 file_name = Struct("Filename" / PaddedString(this._._.length - 2, "utf-16-le"))
@@ -431,10 +430,11 @@ check_packet = Struct(
 short_packet = Struct(
     Const(b"DR"),
     "type" / Short,
-    "Data" / Switch(
+    "Short" / Switch(
         this.type,
         {
             0x2020: "Updates" / updates,
+            0x2022: "Ready" / Struct("Ready" / Computed(1)),
             0x3020: "Registers" / registers,
         },
         default=Pass,
@@ -451,7 +451,7 @@ long_packet = Struct(
     "type" / Short,
     Padding(7),
     "length" / Short,
-    "System" / Switch(
+    "Long" / Switch(
         this.type,
         {
             0x2000:
@@ -462,10 +462,10 @@ long_packet = Struct(
             0x2031:
             "InputInfo" / Struct("InputInfo" / input_info),
             0x2032:
-            "FileName" / Struct("FileName" / IfThenElse(
+            "File" / Struct("File" / IfThenElse(
                 this._.type == 0xf0,
-                file_data,
                 file_name,
+                file_data,
             )),
             0x2033:
             "SysMessage" / Struct("SysMessage" / sys_message),
@@ -506,6 +506,12 @@ get_reg_bank = Struct(
     "Bank" / Byte,
     "Reg" / Byte,
     Const(b"\x00\x00\x00\x00\x00\x00\x00\x00"),
+)
+
+req_download = Struct(
+    Const(b"\x44\x52\x40\x41\x30\x00"),
+    "Index" / Short,
+    Const(b"\x00\x00\x00\x00\x00\x00"),
 )
 
 '''
@@ -640,74 +646,19 @@ def Run():
         if loop == 0:
             s.send(b"\x44\x52\x20\x42\x07\x00\x00\x00\x00\x00\x00\x00\x00\x00")
 
-        if options.reg:
-            for reg in range(16):  # Read block of registers
-                s.send(get_reg_bank.build({ "Bank": int(options.reg), "Reg": reg}))
-            options.reg = False
-
-        if options.info:
-            s.send(b"\x44\x52\xf0\x41\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00"
-                   )  # Request SysInfo
-
-            s.send(b"\x44\x52\x30\x42\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-                   )  # Read File Type
-            s.send(b"\x44\x52\x30\x42\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00"
-                   )  # Read Sample Rate
-            s.send(b"\x44\x52\x30\x42\x01\x02\x00\x00\x00\x00\x00\x00\x00\x00"
-                   )  # Read PreRecord
-            s.send(b"\x44\x52\x30\x42\x01\x08\x00\x00\x00\x00\x00\x00\x00\x00"
-                   )  # Read Channels
-            s.send(b"\x44\x52\x30\x42\x01\x09\x00\x00\x00\x00\x00\x00\x00\x00"
-                   )  # Read Dual Mode
-
-            s.send(b"\x44\x52\x30\x42\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-                   )  # Read Auto Track Inc
-            s.send(b"\x44\x52\x30\x42\x02\x01\x00\x00\x00\x00\x00\x00\x00\x00"
-                   )  # Read Auto Level
-            s.send(b"\x44\x52\x30\x42\x02\x03\x00\x00\x00\x00\x00\x00\x00\x00"
-                   )  # Read Auto Mark
-            s.send(b"\x44\x52\x30\x42\x02\x04\x00\x00\x00\x00\x00\x00\x00\x00"
-                   )  # Read Auto Mark Level
-
-            s.send(b"\x44\x52\x30\x42\x03\x03\x00\x00\x00\x00\x00\x00\x00\x00"
-                   )  # Read ???
-
-            s.send(b"\x44\x52\x30\x42\x0a\x02\x00\x00\x00\x00\x00\x00\x00\x00"
-                   )  # Read low cut
-            s.send(b"\x44\x52\x30\x42\x0a\x03\x00\x00\x00\x00\x00\x00\x00\x00"
-                   )  # Read level control
-
-            s.send(b"\x44\x52\xf0\x41\x32\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-                   )  # Request Filename
-            s.send(b"\x44\x52\x20\x42\x11\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-                   )  # Read Counter
-            s.send(b"\x44\x52\x20\x42\x20\x07\x00\x00\x00\x00\x00\x00\x00\x00"
-                   )  # Read Scene
-            s.send(b"\x44\x52\x20\x42\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-                   )  # Read Status
-            options.info = False
-
-        if (options.stream):
-            s.send(b"\x44\x52\xf0\x41\x21\x01\x00\x00\x00\x00\x00\x00\x00\x00")
-            stream_file = open("stream.dat", "wb")
-            options.stream = False
-
+        # Send keycodes immediately
         if (options.play):
             s.send(send_keycode.build({"Keycode": 0x09}))
             options.play = False
-        if (options.rec):
+        elif (options.rec):
             s.send(send_keycode.build({"Keycode": 0x0b}))
             options.rec = False
-        if (options.stop):
+        elif (options.stop):
             s.send(send_keycode.build({"Keycode": 0x08}))
             options.stop = False
-        if (options.keycode):
+        elif (options.keycode):
             s.send(send_keycode.build({"Keycode": int(options.keycode)}))
             options.keycode = False
-
-        if options.listing:
-            s.send(b"\x44\x52\x40\x41\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-            options.listing = False
 
         if options.level:
             if options.mtr:
@@ -726,6 +677,11 @@ def Run():
                     "Level4": 0,
                     }))
             options.level = False
+
+        if (options.stream):
+            s.send(b"\x44\x52\xf0\x41\x21\x01\x00\x00\x00\x00\x00\x00\x00\x00")
+            stream_file = open("stream.dat", "wb")
+            options.stream = False
 
         if options.clock:
             now = datetime.datetime.now()
@@ -778,12 +734,69 @@ def Run():
         else:
             log = None
 
-        loop = loop + 1
-
         if log:
-            if log.get('Data'):
-                if log.Data.get('Update'):
-                    if log.Data.Update.get('VUMeters'):
+            if log.get('Short'):
+                if log.Short.get('Ready'):
+                    # Only send one new request at a time, and wait for 'ready'
+                    if options.reg:
+                        for reg in range(16):  # Read block of registers
+                            s.send(get_reg_bank.build({ "Bank": int(options.reg), "Reg": reg}))
+                        options.reg = False
+
+                    elif options.info:
+                        s.send(b"\x44\x52\xf0\x41\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00"
+                               )  # Request SysInfo
+
+                        s.send(b"\x44\x52\x30\x42\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+                               )  # Read File Type
+                        s.send(b"\x44\x52\x30\x42\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00"
+                               )  # Read Sample Rate
+                        s.send(b"\x44\x52\x30\x42\x01\x02\x00\x00\x00\x00\x00\x00\x00\x00"
+                               )  # Read PreRecord
+                        s.send(b"\x44\x52\x30\x42\x01\x08\x00\x00\x00\x00\x00\x00\x00\x00"
+                               )  # Read Channels
+                        s.send(b"\x44\x52\x30\x42\x01\x09\x00\x00\x00\x00\x00\x00\x00\x00"
+                               )  # Read Dual Mode
+
+                        s.send(b"\x44\x52\x30\x42\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+                               )  # Read Auto Track Inc
+                        s.send(b"\x44\x52\x30\x42\x02\x01\x00\x00\x00\x00\x00\x00\x00\x00"
+                               )  # Read Auto Level
+                        s.send(b"\x44\x52\x30\x42\x02\x03\x00\x00\x00\x00\x00\x00\x00\x00"
+                               )  # Read Auto Mark
+                        s.send(b"\x44\x52\x30\x42\x02\x04\x00\x00\x00\x00\x00\x00\x00\x00"
+                               )  # Read Auto Mark Level
+
+                        s.send(b"\x44\x52\x30\x42\x03\x03\x00\x00\x00\x00\x00\x00\x00\x00"
+                               )  # Read ???
+
+                        s.send(b"\x44\x52\x30\x42\x0a\x02\x00\x00\x00\x00\x00\x00\x00\x00"
+                               )  # Read low cut
+                        s.send(b"\x44\x52\x30\x42\x0a\x03\x00\x00\x00\x00\x00\x00\x00\x00"
+                               )  # Read level control
+
+                        s.send(b"\x44\x52\xf0\x41\x32\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+                               )  # Request Filename
+                        s.send(b"\x44\x52\x20\x42\x11\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+                               )  # Read Counter
+                        s.send(b"\x44\x52\x20\x42\x20\x07\x00\x00\x00\x00\x00\x00\x00\x00"
+                               )  # Read Scene
+                        s.send(b"\x44\x52\x20\x42\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+                               )  # Read Status
+                        options.info = False
+
+                    elif options.listing:
+                        s.send(b"\x44\x52\x40\x41\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+                        options.listing = False
+
+                    elif options.download and storage_file:
+                        s.send(req_download.build({"Index": int(options.download)}))
+                        print("Downloading Index:", int(options.download))
+                        options.download = False
+
+
+                elif log.Short.get('Update'):
+                    if log.Short.Update.get('VUMeters'):
                         if options.vu:
                             bar = (" " * 32) + ("*" * 32) + (" " * 32)
                             if options.mtr:
@@ -792,45 +805,39 @@ def Run():
                                 pick = [0]
 
                             for p in pick:
-                                l = log.Data.Update.VUMeters[p].BarL
-                                r = log.Data.Update.VUMeters[p].BarR
+                                l = log.Short.Update.VUMeters[p].BarL
+                                r = log.Short.Update.VUMeters[p].BarR
                                 if p == pick[0]:
-                                    d = log.Data.Update.DecimalVU
+                                    d = log.Short.Update.DecimalVU
                                 else:
                                     d = "   "
 
                                 print("%s : %4s : %s" % (bar[l:l + 32], d,
                                                          bar[64 - r:96 - r]))
                     else:
-                        print(":", log.Data.Update)
-                if log.Data.get('Register'):
-                    print(log.Data.Register)
-
-            if log.get('System'):
-                if log.System.get('Files'):
-                    for x in range(len(log.System.Files)):
-                        if options.download:
-                            if int(options.download) == log.System.Files[
-                                    x].Meta.Index:
-                                storage_file = open(
-                                    log.System.Files[x].Filename, "wb")
-                                s.send(
-                                    bytes("\x44\x52\x40\x41\x30\x00\x00" +
-                                          chr(int(options.download)) +
-                                          "\x00\x00\x00\x00\x00\x00", "utf-8"))
-                                print("*", )
-                        print(log.System.Files[x].Meta.Index, "=",
-                              log.System.Files[x].Filename)
-                elif log.System.get('FileData') and storage_file:
-                    storage_file.write(log.System.FileData)
-                elif log.System.get('StreamData') and stream_file:
-                    stream_file.write(log.System.StreamData)
-                elif log.System.get('FileEntry'):
-                    print(log.System.FileEntry.Meta.Index, ":",
-                          log.System.FileEntry.FileEntry)
+                        print("Update :", log.Short.Update)
+                elif log.Short.get('Register'):
+                    print("Register :", log.Short.Register)
                 else:
-                    print(log.System)
+                    print(log.Short)
 
+            if log.get('Long'):
+                if log.Long.get('File'):
+                    if log.Long.File.get('FileData') and storage_file:
+                        storage_file.write(log.Long.File.FileData)
+                elif log.Long.get('StreamData') and stream_file:
+                    stream_file.write(log.Long.StreamData)
+                elif log.Long.get('FileEntry'):
+                    print(log.Long.FileEntry.Meta.Index, ":",
+                          log.Long.FileEntry.Name)
+
+                    if options.download:
+                        if int(options.download) == log.Long.FileEntry.Meta.Index:
+                            storage_file = open(log.Long.FileEntry.Name, "wb")
+                else:
+                    print(log.Long)
+
+        loop = loop + 1
 
 if __name__ == '__main__':
     Run()
