@@ -152,6 +152,15 @@ registers = Struct(
                 ON=1,
             )),
             #0x0303: Value 0x01 seen?
+            0x0303:
+            "Unknown303" / Struct("Unknown303" / Bytes(4),
+            ),
+            0x0304:
+            "Unknown304" / Struct("Unknown304" / Bytes(4),
+            ),
+            0x0305:
+            "Unknown305" / Struct("Unknown305" / Bytes(4),
+            ),
             0x0600:
             "Reverb" / Struct("Reverb" / Enum(
                 Short,
